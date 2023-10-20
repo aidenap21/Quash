@@ -3,6 +3,7 @@ Quite a Shell (quash) program using the UNIX system calls
 https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.html
 
 # To-Do List
+- List Directory Contents - ls
 - Foreground Executables
 - Background Executables - &
 - Input Redirection - <
