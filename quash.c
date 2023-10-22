@@ -20,46 +20,49 @@
 
 
 // List Directory Contents - ls
-int ls(char arg) { // takes in single letter argument
+int ls(char* arg) { // takes in single letter argument
     //need to find list of arguments it takes and implement each one
 }
 
-// Foreground Executables (In Progress)
-int forExe(char *exe, char *arg, char *output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
-    int status;
-    pid_t p = fork();
+// Foreground Executables (COMPLETED - NOT VERIFIED) //NEED TO ADD JOB QUEUE INCREMENTING
+int forExe(char** exe, char* output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
+    pid_t p = fork(); // calls fork on pid p
 
-    if(p == 0) {
-        char cmdbuf[BSIZE];
-        bzero(cmdbuf, BSIZE);
-        sprintf(cmdbuf, "%s %s", exe, arg);
-
-        //exec call needs to change since BASH_EXEC isn't going to be there
-        if ((execl(BASH_EXEC, BASH_EXEC, "-c", cmdbuf, (char *) 0)) < 0) {
-            fprintf(stderr, "\nError execing bash. ERROR#%d\n", errno);
-            return EXIT_FAILURE;
+    if (p == 0) { // child process
+        if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
+            printf("Error executing..."); // prints statement that exec fails
+            return 0; 
         }
-    }
 
-    if ((waitpid(p, &status, 0)) == -1) {
-        fprintf(stderr, "Process 1 encountered an error. ERROR%d", errno);
-        return EXIT_FAILURE;
+    } else { // parent process 
+        wait(NULL); // parent waits for child to finish executing
     }
 
     return 0;
 }
 
-// Background Executables - &
-int backExe(char *exe, char *arg) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
+// Background Executables - & (COMPLETED - NOT VERIFIED) //NEED TO ADD JOB QUEUE INCREMENTING
+int backExe(char** exe, char* output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
+    pid_t p = fork(); // calls fork on pid p
+
+    if (p == 0) { // child process
+        if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
+            printf("Error executing..."); // prints statement that exec fails
+            return 0; 
+        }
+
+    } // doesn't have else to catch parent and wait because process is running in the background
+
+    return 0;
 }
 
 
 // Print String - echo (In Progress)
-int echoString(char *string) { // takes in string to print
+int echoString(char* string) { // takes in string to print
     // maybe need different method than direct printing?
-    printf("%s", string); 
+    printf("%s\n", string); // prints string and new line
 }
 
 // Set Value of Environmental Variable - export
@@ -76,7 +79,7 @@ int printJobs() {
 
 }
 
-int parser(char *input) { // takes in string to parse
+int parser(char* input) { // takes in string to parse
     //start at front of string and iterate through and store each character in a new buffer
     //stop when hitting one of the special characters or end of line
     //if stopped from end of line then check if any of the commands that don't take in any parameters
@@ -103,6 +106,7 @@ int parser(char *input) { // takes in string to parse
 // Pipes and Redirects Work with Built//In Commands
 
 int main() {
+    char* jobs[]; // creates array to store the running jobs
     printf("Welcome...\n");
     while(1) {
         //waits for user input at the start of each loop
