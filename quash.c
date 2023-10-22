@@ -3,6 +3,7 @@
 #include <unistd.h>
 #include <strings.h>
 #include <errno.h>
+#include <sys/wait.h>
 
 #define BSIZE 256
 
@@ -24,7 +25,7 @@ int ls(char arg) { // takes in single letter argument
 }
 
 // Foreground Executables (In Progress)
-int forExe(char *exe, char *arg) { // takes in executable name and arguments as a string
+int forExe(char *exe, char *arg, char *output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
     int status;
     pid_t p = fork();
 
@@ -49,7 +50,7 @@ int forExe(char *exe, char *arg) { // takes in executable name and arguments as 
 }
 
 // Background Executables - &
-int backExe(char *exe, char *arg) { // takes in executable name and arguments as a string
+int backExe(char *exe, char *arg) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
 }
@@ -62,32 +63,17 @@ int echoString(char *string) { // takes in string to print
 }
 
 // Set Value of Environmental Variable - export
-int export(char *var, char *val) { // takes in variable name and value to update with (not positive about variable type)
+//int export(char *var, char *val) { // takes in variable name and value to update with (not positive about variable type)
     //need to know what variables need to actually be defined that are going to be updated
     //check var and compare to variable names to figure out what to update
-}
+//}
 
-// Change Working Directory - cd
-int changeDir(char *path) { // takes in new path to navigate to
-    //should be simple function call
-}
-
-// Print Path of Current Directory - pwd
-int workingDir() {
-    //should also be simple function call
-}
 
 // Print All Running Background Process - jobs
 int printJobs() {
     //need an array that is storing all currently running jobs
     //iterate through the job array and print
 
-}
-
-// Send POSIX Signal to Process - kill
-int sendSig(int signal, int pid) { // takes in POSIX signal and PID to send signal to
-    //need to figure out how to force signal being sent since the user isn't actually pressing the command
-    //also need to ensure that the signal doesn't force the quash program itself to close
 }
 
 int parser(char *input) { // takes in string to parse
@@ -107,6 +93,9 @@ int parser(char *input) { // takes in string to parse
 // Pipes - | (Build into parser)
 // Comments - # (Build into parser)
 // Terminate Quash - quit, exit (Build into parser)
+// Change Working Directory - (Build into parser)
+// Print Path of Current Directory - pwd (Build into parser)
+// Send POSIX Signal to Process - kill (Build into parser)
 
 
 // Bonus
