@@ -4,6 +4,8 @@ https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.ht
 
 # To-Do List
 - List Directory Contents - ls
+- Foreground Executables (Add output redirect to output buffer)
+- Background Executables - & (Add output redirect to output buffer and fix job list adding)
 - Input Redirection - <
 - Output Redirection - >
 - Redirect Output While Appending Output - >>
@@ -22,5 +24,3 @@ https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.ht
 - Pipes and Redirects Work with Built-In Commands
 
 # Completed
-- Foreground Executables (NOT VERIFIED)
-- Background Executables - & (NOT VERIFIED)
