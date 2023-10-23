@@ -8,18 +8,6 @@
 #define BSIZE 256
 #define MAX_JOBS 10
 
-//these are bash specified bins
-//maybe make different file for each function and run it instead of in 1 big file?
-//shouldn't use bash directories and should build our own instead I think
-#define BASH_EXEC  "/bin/bash"
-#define FIND_EXEC  "/bin/find"
-#define XARGS_EXEC "/usr/bin/xargs"
-#define GREP_EXEC  "/bin/grep"
-#define SORT_EXEC  "/bin/sort"
-#define HEAD_EXEC  "/usr/bin/head"
-
-
-
 // List Directory Contents - ls
 int ls(char* arg) { // takes in single letter argument
     //need to find list of arguments it takes and implement each one
@@ -91,7 +79,7 @@ int printJobs() {
 }
 
 // Commands that are built in with key words
-int buildInCmds(char* input) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
+int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
     char* allCmds[8]; // creates an array that will store names of commands to verify which one was passed in
     
