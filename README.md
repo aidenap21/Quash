@@ -13,14 +13,14 @@ https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.ht
 - Comments - #
 - Print String - echo
 - Set Value of Environmental Variable - export
-- Change Working Directory - cd
 - Print Path of Current Directory - pwd
-- Terminate Quash - quit, exit
 - Print All Running Background Process - jobs
-- Send POSIX Signal to Process - kill
 
 # Bonus
 - Pipes and Redirects Can Be Mixed
 - Pipes and Redirects Work with Built-In Commands
 
 # Completed
+- Change Working Directory - cd
+- Terminate Quash - quit, exit
+- Send POSIX Signal to Process - kill

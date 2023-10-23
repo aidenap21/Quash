@@ -8,11 +8,6 @@
 #define BSIZE 256
 #define MAX_JOBS 10
 
-// List Directory Contents - ls
-int ls(char* arg) { // takes in single letter argument
-    //need to find list of arguments it takes and implement each one
-}
-
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
 int forExe(char** exe, char* output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
     pid_t p = fork(); // calls fork on pid p
@@ -78,6 +73,11 @@ int printJobs() {
 
 }
 
+// List Directory Contents - ls
+int ls(char* arg) { // takes in single letter argument
+    //need to find list of arguments it takes and implement each one
+}
+
 // Commands that are built in with key words
 int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
@@ -90,7 +90,8 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
     allCmds[4] = "exit";
     allCmds[5] = "cd";
     allCmds[6] = "pwd";
-    allCmds[7] = "kill";
+    allCmds[7] = "ls";
+    allCmds[8] = "kill";
 
     for (int i = 0; i++; i < 8) { // iterates through the command array
         if (strcmp(input[0], allCmds[i]) == 0) { // compares the first index of input to the current command to see if it matches
@@ -129,9 +130,16 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
             }
             return 0;
 
-        case 6:// Print Path of Current Directory - pwd (Simple command)
+        case 6: // Print Path of Current Directory - pwd (Simple command)
+            char directorybuf[BSIZE]; // creates a buffer for the current working directory
+            bzero(directorybuf, BSIZE); // empties the buffer
+            getcwd(directorybuf, BSIZE); // gets the current working directory and stores it in the buffer
+            
 
-        case 7:// Send POSIX Signal to Process - kill (Simple command)
+        case 7: // List Directory Contents - ls
+            ls(input[1]); // calls ls with the first index value which is the letter parameter
+
+        case 8:// Send POSIX Signal to Process - kill (Simple command)
             kill(input[1], input[2]); // VERIFY SIGNIAL IS SENT SOMEHOW??
             return 0;
     }
