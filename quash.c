@@ -135,7 +135,7 @@ int buildInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
             exit(0); // ends the program
 
         case 5: // Change Working Directory - cd (Simple command)
-            if (chdir(input[1]) == 0) { // this may be wrong, need to verify what chdir returns if unsuccessful //VERIFY WITH TRY EXCEPT FOR INPUT
+            if (chdir(input[1]) == -1) { // this may be wrong, need to verify what chdir returns if unsuccessful //VERIFY WITH TRY EXCEPT FOR INPUT
                 printf("Invalid directory..."); // state that the directory is invalid
                 return 2; // returns 2 to signify error in input parameters
             }
