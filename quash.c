@@ -249,6 +249,7 @@ int main() {
             if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
                 if (kill(0, jobList[i].pid) == -1) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
                     printf("Completed: %s", jobList[i].formatted); // prints that the process completed
+                    jobList[i].quashID = 0; // sets the quashID to 0 to signify the process ended
                 }
             }
         }
