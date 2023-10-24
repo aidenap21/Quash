@@ -145,7 +145,7 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
     }
 }
 
-int parser(char* input) { // takes in string to parse
+void parser(char *input, char parsed[5][256]) { { // takes in string to parse
     //start at front of string and iterate through and store each character in a new buffer
     //stop when hitting one of the special characters or end of line
     //if stopped from end of line then check if any of the commands that don't take in any parameters
@@ -154,7 +154,70 @@ int parser(char* input) { // takes in string to parse
     //continue reading if more characters after special character and store the second half in different buffer
     //run error message if not enough or too many parameters are given instead of passing in function and finding an error
     //each function should have independent error handling if incorrect parameters are passed, parser should just check quantity and type
+    int inLen = strlen(input); 
+    int single = 0, dub = 0, count = 0;
+    
+    
+    for (int j = 0; j < inLen; j++)  
+    { 
+        
+        if(input[j] == '\'' && dub == 0)
+        {
+            if (count == 0)
+            { 
+                single = 1; 
+                count++;
+            }
+            else 
+            { 
+                single = 0; 
+                count--;
+            }
+        }
+        
+        if(input[j] == '\"' && single == 0)
+        {
+            if (count == 0)
+            { 
+                dub = 1; 
+                count++;
+            }
+            else 
+            { 
+                dub = 0; 
+                count--;
+            } 
+        }
+        
+        if(single == 0 && dub == 0)
+        {
+            if (input[j] == '#')
+            {
+                input[j] = '\0';
+                break;
+            }
+            
+            if (input[j] == '=') 
+            {
+                input[j] = ' '; 
+            }
+        }
+    }
+            
+    int i = 0;
+    char *temp;
+    while ((temp = strsep(&input, " ")) != NULL) {
+        strcpy(parsed[i], temp);  
+        i++;
+    }
 
+    for (int j = 0; j < i; j++) {
+        printf("%s\n", parsed[j]);
+    }
+
+}
+    
+    
 }
 
 // Input Redirection - < (Midline Modifier)
