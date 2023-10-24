@@ -166,8 +166,8 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
     //run error message if not enough or too many parameters are given instead of passing in function and finding an error
     //each function should have independent error handling if incorrect parameters are passed, parser should just check quantity and type
 
-int parser(char *input, char parsed[256][256]) { //parameters for input string and matrix to output the parsed data to
-
+int parser(char *input, char parsed[256][256], char leftover[256])  //parameters for input string and matrix to output the parsed data to
+{
     int inLen = strlen(input); 
     
     if(inLen == 0) //check if the input is empty
@@ -227,9 +227,10 @@ int parser(char *input, char parsed[256][256]) { //parameters for input string a
     char *temp; //Temp buffer to hold the current space-separated item
     while ((temp = strsep(&input, " ")) != NULL) //Separate everything by spaces
     {
-        strcpy(parsed[i], temp); //Copy the current word into the parsed array
+        strncpy(leftover, input + i-2, inLen); //Copy the current word into the parsed array
         
         int opType = -1;
+        
         char* operations[4];
         
         operations[0] = "|";
@@ -252,15 +253,23 @@ int parser(char *input, char parsed[256][256]) { //parameters for input string a
             switch(opType)
             {
                 case 0: // pipe case
+                    strncpy(leftover, input + i-2, inLen);
+                    leftover[inLen] = "\0";
                     return 1;
                     
                 case 1: // < case
+                    strncpy(leftover, input + i-2, inLen);
+                    leftover[inLen] = "\0";
                     return 2;
                 
                 case 2: // > case
+                    strncpy(leftover, input + i-2, inLen);
+                    leftover[inLen] = "\0";
                     return 3;
                     
                 case 3: // >> case
+                    strncpy(leftover, input + i-2, inLen);
+                    leftover[inLen] = "\0";
                     return 4;
             }
         }
