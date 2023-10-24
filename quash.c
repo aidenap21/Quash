@@ -145,7 +145,7 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
     }
 }
 
-void parser(char *input, char parsed[5][256]) { { // takes in string to parse
+    //void parser(char *input, char parsed[5][256]) {  // takes in string to parse
     //start at front of string and iterate through and store each character in a new buffer
     //stop when hitting one of the special characters or end of line
     //if stopped from end of line then check if any of the commands that don't take in any parameters
@@ -154,14 +154,19 @@ void parser(char *input, char parsed[5][256]) { { // takes in string to parse
     //continue reading if more characters after special character and store the second half in different buffer
     //run error message if not enough or too many parameters are given instead of passing in function and finding an error
     //each function should have independent error handling if incorrect parameters are passed, parser should just check quantity and type
+
+int parser(char *input, char parsed[256][256]) { //parameters for input string and matrix to output the parsed data to
+
     int inLen = strlen(input); 
-    int single = 0, dub = 0, count = 0;
     
+    if(inLen == 0) //check if the input is empty
+    { return 5; }
     
-    for (int j = 0; j < inLen; j++)  
+    int single = 0, dub = 0, count = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
+    
+    for (int j = 0; j < inLen; j++) //Loop thru entire input
     { 
-        
-        if(input[j] == '\'' && dub == 0)
+        if(input[j] == '\'' && dub == 0) //Case for ''
         {
             if (count == 0)
             { 
@@ -175,7 +180,7 @@ void parser(char *input, char parsed[5][256]) { { // takes in string to parse
             }
         }
         
-        if(input[j] == '\"' && single == 0)
+        if(input[j] == '\"' && single == 0) //Case for ""
         {
             if (count == 0)
             { 
@@ -189,36 +194,73 @@ void parser(char *input, char parsed[5][256]) { { // takes in string to parse
             } 
         }
         
-        if(single == 0 && dub == 0)
+        if(single == 0 && dub == 0) //Case for when the input is not surrounded by quotes
         {
-            if (input[j] == '#')
+            if (input[j] == '#') //Check for comments
             {
-                input[j] = '\0';
+                if(j == 0) //Return if there is a comment at the very start
+                { return 5; } 
+                
+                input[j] = '\0'; //End the readable code after comment
                 break;
             }
             
-            if (input[j] == '=') 
+            if (input[j] == '=') //Replace any '=' with spaces
             {
                 input[j] = ' '; 
             }
         }
     }
             
-    int i = 0;
-    char *temp;
-    while ((temp = strsep(&input, " ")) != NULL) {
-        strcpy(parsed[i], temp);  
+    int i = 0; 
+    char *temp; //Temp buffer to hold the current space-separated item
+    while ((temp = strsep(&input, " ")) != NULL) //Separate everything by spaces
+    {
+        strcpy(parsed[i], temp); //Copy the current word into the parsed array
+        
+        int opType = -1;
+        char* operations[4];
+        
+        operations[0] = "|";
+        operations[1] = "<";
+        operations[2] = ">";
+        operations[3] = ">>";
+        
+
+        for(int j = 0; j<4; j++) 
+        {
+            if (strcmp(temp, operations[j]) == 0)
+            {
+                opType = j;
+                break;
+            }
+        }
+        
+        if(opType != -1) //Check if there is an operation that needs to be handled
+        {
+            switch(opType)
+            {
+                case 0: // pipe case
+                    return 1;
+                    
+                case 1: // < case
+                    return 2;
+                
+                case 2: // > case
+                    return 3;
+                    
+                case 3: // >> case
+                    return 4;
+            }
+        }
         i++;
     }
-
-    for (int j = 0; j < i; j++) {
-        printf("%s\n", parsed[j]);
-    }
+    return 0;
 
 }
     
     
-}
+
 
 // Input Redirection - < (Midline Modifier)
 // Output Redirection - > (Midline Modifier)
