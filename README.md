@@ -3,7 +3,6 @@ Quite a Shell (quash) program using the UNIX system calls
 https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.html
 
 # To-Do List
-- List Directory Contents - ls
 - Foreground Executables (Add output redirect to output buffer)
 - Background Executables - & (Add output redirect to output buffer and fix job list adding)
 - Input Redirection - <
@@ -15,6 +14,9 @@ https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.ht
 - Set Value of Environmental Variable - export
 - Print Path of Current Directory - pwd
 - Print All Running Background Process - jobs
+- List Directory Contents - ls
+- Parser
+- Main Loop Set Up
 
 # Bonus
 - Pipes and Redirects Can Be Mixed
