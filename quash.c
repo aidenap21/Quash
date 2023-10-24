@@ -6,7 +6,14 @@
 #include <sys/wait.h>
 
 #define BSIZE 256
-#define MAX_JOBS 10
+#define MAX_JOBS 100
+
+struct job {
+    int quashID = 0; // quashID for job, will be the job's value + 1
+    int pid; // actual system PID for the job
+    char command[BSIZE]; // string storing the command that started the command
+    char formatted[BSIZE]; // string storing the formatted version of the job showing the quashID, PID, and command line
+} jobList[MAX_JOBS];
 
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
 int forExe(char** exe, char* output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
@@ -26,18 +33,22 @@ int forExe(char** exe, char* output) { // takes in executable name and arguments
 }
 
 // Background Executables - & (In Progress)  need to figure out how to redirect output to the output buffer and properly add to job list
-int backExe(char** exe, char* output, char* jobs) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else and job list
+int backExe(char** exe, char* unparsed, char* output) { // takes in executable name and arguments as a string. Also takes in unparsed to be passed into job list and takes in output that will be printed or passed somewhere else
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
         for (int i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
-            if (jobs[i] == NULL) { // checks if the current index value is NULL to add the new job to it
+            if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
                 char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
                 bzero(jobbuf, BSIZE); // empties the buffer
-                sprintf(jobbuf, "[%d] %d %s", i+1, getpid(), exe); // Adds job to buffer in format [QUASH PID] PID COMMAND
-                jobs[i] = jobbuf; // adds the new job to the jobs array DON'T THINK THIS SYNTAX IS RIGHT
+                sprintf(jobbuf, "[%d] %d %s", i+1, getpid(), unparsed); // Adds job to buffer in format [QUASH PID] PID COMMAND
+                jobList[i].quashID = i+1; // sets the quashID as the index + 1
+                jobList[i].pid = getpid(); // sets the pid variable as its pid
+                strcpy(jobList[i].command, unparsed); // adds the command to the command variable
+                strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
+                printf("Background job started: %s", jobbuf); // prints that the job started with its information
             }
         }
         if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
@@ -134,7 +145,7 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
             char directorybuf[BSIZE]; // creates a buffer for the current working directory
             bzero(directorybuf, BSIZE); // empties the buffer
             getcwd(directorybuf, BSIZE); // gets the current working directory and stores it in the buffer
-            
+
 
         case 7: // List Directory Contents - ls
             ls(input[1]); // calls ls with the first index value which is the letter parameter
@@ -276,6 +287,14 @@ int main() {
     char* jobs[]; // creates array to store the running jobs
     printf("Welcome...\n");
     while(1) {
+        for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
+            if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
+                if (kill(0, jobList[i].pid) == -1) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
+                    printf("Completed: %s", jobList[i].formatted); // prints that the process completed
+                    jobList[i].quashID = 0; // sets the quashID to 0 to signify the process ended
+                }
+            }
+        }
         //waits for user input at the start of each loop
         //takes the input and passes it to parser which utilizes it from there
         //error handling in here?
