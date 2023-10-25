@@ -20,7 +20,7 @@ int forExe(char exe[][BSIZE]) { // takes in executable name and arguments as a s
 
     if (p == 0) { // child process
         if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
-            printf("Error executing..."); // prints statement that exec fails
+            printf("Error executing...\n"); // prints statement that exec fails
             return 0; 
         }
 
@@ -51,7 +51,7 @@ int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and
             }
         }
         if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
-            printf("Error executing..."); // prints statement that exec fails
+            printf("Error executing...\n"); // prints statement that exec fails
             return 0; 
         }
 
@@ -69,7 +69,7 @@ int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes
     char currentItem[BSIZE];
     for (int i = 2; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE);
-        if (strcmp(parsed[i][0], "$") == 0) { // checks if environmental variable
+        if (parsed[i][0] == '$') { // checks if environmental variable
             sprintf(currentItem, "%s ", getenv(parsed[i])); // gets environmental variable value and adds to output
         }
         sprintf(currentItem, "%s ", parsed[i]); // adds to output
@@ -77,16 +77,6 @@ int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes
     }
     strcat(output, "\n"); // adds new line to output
 }
-
-/*
-// Set Value of Environmental Variable - export
-int export(char* parsed) { // takes in variable name and value to update with (not positive about variable type) returns 0 on success and 1 on failure
-    //need to know what variables need to actually be defined that are going to be updated
-    //check var and compare to variable names to figure out what to update
-    setenv
-}
-*/
-
 
 // Print All Running Background Process - jobs
 void printJobs() {
@@ -103,7 +93,7 @@ void printJobs() {
 // Commands that are built in with key words
 int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
-    char* allCmds[9]; // creates an array that will store names of commands to verify which one was passed in
+    char* allCmds[8]; // creates an array that will store names of commands to verify which one was passed in
     
     allCmds[0] = "echo";
     allCmds[1] = "export";
@@ -114,7 +104,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
     allCmds[6] = "pwd";
     allCmds[7] = "kill";
 
-    for (int i = 0; i++; i < 8) { // iterates through the command array
+    for (int i = 0; i < 8; i++) { // iterates through the command array
         if (strcmp(parsed[0], allCmds[i]) == 0) { // compares the first index of input to the current command to see if it matches
             cmdType = i; // sets the switch value number if it matches
             break; // breaks the loop since the match was already found
@@ -308,7 +298,8 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     bzero(outputBuf, BSIZE);
     int numberOfItems = 0;
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
-    
+    printf("%s", parsed[0]);
+
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
             int builtIn = builtInCmds(parsed, numberOfItems, outputBuf); // calls builtInCmds and stores return to check if success, no match, or error
