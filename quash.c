@@ -364,7 +364,6 @@ int main() {
         bzero(input, BSIZE); // empties the buffer
         printf("[QUASH]$ "); // prints line
         fgets(input, BSIZE, stdin); // gets input from user
-        printf("\n"); // prints new line for the output
         parseThenPass(input); 
         //waits for user input at the start of each loop
         //takes the input and passes it to parser which utilizes it from there
