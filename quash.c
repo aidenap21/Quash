@@ -181,10 +181,20 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     if(inLen == 0) //check if the input is empty
     { return 5; }
     
-    int single = 0, dub = 0, count = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
+    int single = 0, dub = 0, count = 0, environ = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
     
     for (int j = 0; j < inLen; j++) //Loop thru entire input
     { 
+        if(input[j] == '$')
+        {
+            environ = 1;
+        }
+        
+        if(input[j] == '/')
+        {
+            environ = 0;
+        }
+
         if(input[j] == '\'' && dub == 0) //Case for ''
         {
             if (count == 0)
@@ -213,7 +223,7 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
             } 
         }
         
-        if(single == 0 && dub == 0) //Case for when the input is not surrounded by quotes
+        if(single == 0 && dub == 0 && environ == 0) //Case for when the input is not surrounded by quotes
         {
             if (input[j] == '#') //Check for comments
             {
@@ -235,7 +245,7 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     char *temp; //Temp buffer to hold the current space-separated item
     while ((temp = strsep(&input, " ")) != NULL) //Separate everything by spaces
     {
-        strncpy(leftover, input + i-2, inLen); //Copy the current word into the parsed array
+        strcpy(parsed[i], temp); //Copy the current word into the parsed array
         
         int opType = -1;
         
