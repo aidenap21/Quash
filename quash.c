@@ -271,29 +271,29 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
             switch(opType)
             {
                 case 0: // pipe case
-                    strncpy(leftover, input + i-2, inLen);
-                    *pLen = inLen - *input +i;
+                    strncpy(leftover, input, inLen);
+                    *pLen = i;
                     return 1;
                     
                 case 1: // < case
-                    strncpy(leftover, input + i-2, inLen);
-                    *pLen = inLen - *input +i;
+                    strncpy(leftover, input, inLen);
+                    *pLen = i;
                     return 2;
                 
                 case 2: // > case
-                    strncpy(leftover, input + i-2, inLen);
-                    *pLen = inLen - *input +i;
+                    strncpy(leftover, input, inLen);
+                    *pLen = i;
                     return 3;
                     
                 case 3: // >> case
-                    strncpy(leftover, input + i-2, inLen);
-                    *pLen = inLen - *input +i;
+                    strncpy(leftover, input, inLen);
+                    *pLen = i;
                     return 4;
             }
         }
         i++;
     }
-    *pLen = inLen;
+    *pLen = i;
     return 0;
 
 }
