@@ -103,7 +103,7 @@ void printJobs() {
 // Commands that are built in with key words
 int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
-    char* allCmds[8]; // creates an array that will store names of commands to verify which one was passed in
+    char* allCmds[9]; // creates an array that will store names of commands to verify which one was passed in
     
     allCmds[0] = "echo";
     allCmds[1] = "export";
@@ -129,7 +129,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
-            if (setenv(parsed[1], parsed[2]) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
+            if (setenv(parsed[1], parsed[2], 0) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
                 return 2; // returns 2 to signify error in input parameters
             }
             return 0; // returns 0 to signify success
@@ -301,7 +301,7 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     
 
 
-int parseThenPass(char* input) { // parses input and runs corresponding command/executable
+void parseThenPass(char* input) { // parses input and runs corresponding command/executable
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
     char leftover[BSIZE], outputBuf[BSIZE];
     bzero(leftover, BSIZE);
@@ -314,6 +314,7 @@ int parseThenPass(char* input) { // parses input and runs corresponding command/
             int builtIn = builtInCmds(parsed, numberOfItems, outputBuf); // calls builtInCmds and stores return to check if success, no match, or error
             switch(builtIn) { // switch block to check if a command was success, no match, or error
                 case 0: // runs if built in command was matched and successful
+                    printf("%s", outputBuf); // prints the outputBuf which may store the echo output or be empty
                     break; // no other actions
 
                 case 1: // runs if no built in command was matched
@@ -332,21 +333,21 @@ int parseThenPass(char* input) { // parses input and runs corresponding command/
             break;
 
         case 1: // Pipes - | (Midline Modifier)
+            break;
 
         case 2: // Input Redirection - < (Midline Modifier)
+            break;
 
         case 3: // Output Redirection - > (Midline Modifier)
         // fork inside here to redirect output to something else and then call backExe within that.
         // this will cause a background parent to wait for the background process but the main process with keep going if it's supposed to be ran in the background
-
+            break;
         case 4: // Redirect Output While Appending Output - >> (Midline Modifier)
+            break;
 
     }
 
 }
-
-
-
 
 // Comments - # (Midline Modifier)
 
@@ -370,12 +371,13 @@ int main() {
             }
         }
         bzero(input, BSIZE); // empties the buffer
-        printf("[QUASH]$ ");
-        gets(input);
-        printf("\n");
-        parseThenPass(input);
+        printf("[QUASH]$ "); // prints line
+        fgets(&input, BSIZE, stdin); // gets input from user
+        printf("\n"); // prints new line for the output
+        parseThenPass(input); 
         //waits for user input at the start of each loop
         //takes the input and passes it to parser which utilizes it from there
         //error handling in here?
     }
+    return 0;
 }
