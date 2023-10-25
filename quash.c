@@ -122,10 +122,9 @@ int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes
 }
 
 // Set Value of Environmental Variable - export
-int export(char* parsed[][BSIZE], int numberOfItems) {
+int export(char parsed[][BSIZE], int numberOfItems) {
     int variable, value, found = 0, otherVar = 0; // variable and value store the indices of the two and found is a check to see if variable is found to then find value
     for (int i = 1; i < numberOfItems; i++) { // iterates through number of items
-        printf("iteration: %d, for item: %s\n", i, parsed[i]);
         if (parsed[i][0] == '$' && found == 1) { // if $ and variable is already found it runs
             otherVar = 1; // sets value to 1 to know that it will be getting variable value from another environmental variable
             continue; // continues since $ isn't being used directly
@@ -142,10 +141,8 @@ int export(char* parsed[][BSIZE], int numberOfItems) {
     if (found != 2) { // runs if not enough parameters were passed through
         return -1; // returns -1 to signify error
     } else if (otherVar == 1){ // runs if the value being used is another environmental variable
-        printf("Updating variable '%s' with another variable '%s'\n", parsed[variable], parsed[value]);
         return setenv(parsed[variable], getenv(parsed[value]), 1); // gets the value of the value and sets the variable to that, returns 0 for success and -1 for failure
     } else {
-        printf("Updating variable '%s' with direct value '%s'\n", parsed[variable], parsed[value]);
         return setenv(parsed[variable], parsed[value], 1); // sets the variable to the value, returns 0 for success and -1 for failure
     }
 }
@@ -183,6 +180,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             break; // breaks the loop since the match was already found
         } 
     }
+
     switch(cmdType) {
         case -1: // Not valid simple command
             return 1; // returns 1 to signify no matching commands
@@ -192,6 +190,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
+
             if (export(parsed, numberOfItems) == -1) { // calls export function
                 return 2; // returns 2 to signify error in input parameters
             }
@@ -227,16 +226,6 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             return 0; // returns 0 to signify success
     }
 }
-
-    //void parser(char *input, char parsed[5][256]) {  // takes in string to parse
-    //start at front of string and iterate through and store each character in a new buffer
-    //stop when hitting one of the special characters or end of line
-    //if stopped from end of line then check if any of the commands that don't take in any parameters
-    //if it doesn't match any of the commands then call forExe on it to run it as an executable
-    //if stopped from special character then wait till finished parsing
-    //continue reading if more characters after special character and store the second half in different buffer
-    //run error message if not enough or too many parameters are given instead of passing in function and finding an error
-    //each function should have independent error handling if incorrect parameters are passed, parser should just check quantity and type
 
 int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pLen)  //parameters for input string and matrix to output the parsed data to
 {
@@ -360,66 +349,7 @@ int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pL
     curWord++;
     *pLen = curWord; // sets number of items as current word number
     return 0; // returns 0 to signify no midline modifiers
-
-    /*      
-    int i = 0; 
-    char *temp; //Temp buffer to hold the current space-separated item
-    while ((temp = strsep(&input, " ")) != NULL) //Separate everything by spaces
-    {
-        strcpy(parsed[i], temp); //Copy the current word into the parsed array
-        
-        int opType = -1;
-        
-        char* operations[4];
-        
-        operations[0] = "|";
-        operations[1] = "<";
-        operations[2] = ">";
-        operations[3] = ">>";
-        
-
-        for(int j = 0; j<4; j++) 
-        {
-            if (strcmp(temp, operations[j]) == 0)
-            {
-                opType = j;
-                break;
-            }
-        }
-        
-        if(opType != -1) //Check if there is an operation that needs to be handled
-        {
-            switch(opType)
-            {
-                case 0: // pipe case
-                    strncpy(leftover, input, inLen);
-                    *pLen = i;
-                    return 1;
-                    
-                case 1: // < case
-                    strncpy(leftover, input, inLen);
-                    *pLen = i;
-                    return 2;
-                
-                case 2: // > case
-                    strncpy(leftover, input, inLen);
-                    *pLen = i;
-                    return 3;
-                    
-                case 3: // >> case
-                    strncpy(leftover, input, inLen);
-                    *pLen = i;
-                    return 4;
-            }
-        }
-        i++;
-    }
-    *pLen = i;
-    return 0;
-    */
-
 }
-
 
 void parseThenPass(char* input) { // parses input and runs corresponding command/executable
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
@@ -427,11 +357,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     int numberOfItems = 0;
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
 
-    /*
-    for(int i = 0; i < numberOfItems; i++) {
-        printf("item number: %d {%s}\n", i, parsed[i]);
-    }
-    */
+    
 
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
