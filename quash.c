@@ -297,7 +297,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     bzero(leftover, BSIZE);
     bzero(outputBuf, BSIZE);
     int numberOfItems = 0;
-    int midline = parser(input, parsed, leftover); // calls parser and stores the return value to check if pipes or redirection exist in the input
+    int midline = parser(input, parsed, leftover, numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
     
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
