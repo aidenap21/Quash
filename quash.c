@@ -88,30 +88,30 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
-        int i;
-        for (i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
-            if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
-                struct job newJob;
-                char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
-                bzero(jobbuf, BSIZE); // empties the buffer
-                sprintf(jobbuf, "[%d] %d %s", i+1, getpid(), unparsed); // Adds job to buffer in format [QUASH PID] PID COMMAND
-                newJob.quashID = i+1; // sets the quashID as the index + 1
-                newJob.pid = getpid(); // sets the pid variable as its pid
-                strcpy(newJob.command, unparsed); // adds the command to the command variable
-                strcpy(newJob.formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
-                jobList[i] = newJob; // adds newJob to the array
-                printf("Background job started: %s\n", newJob.formatted); // prints that the job started with its information
-                break; // ends loop because space was found in jobList
-            }
-        }
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing background process...\n"); // prints statement that exec fails
-            printf("Background job removed due to error: %s\n", jobList[i].formatted);
-            jobList[i].quashID = 0;
+            //printf("Background job removed due to error: %s\n", jobList[i].formatted);
+            //jobList[i].quashID = 0;
             exit(0); // exits child process since it failed 
         }
 
-    } else if (p < 0) {
+    } else if (p > 0) { // parent process
+        for (int i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
+            if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
+                char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
+                bzero(jobbuf, BSIZE); // empties the buffer
+                sprintf(jobbuf, "[%d] %d %s", i+1, getpid(), unparsed); // Adds job to buffer in format [QUASH PID] PID COMMAND
+                
+                jobList[i].quashID = i+1; // sets the quashID as the index + 1
+                jobList[i].pid = p; // sets the pid variable as the pid of the child
+                strcpy(jobList[i].command, unparsed); // adds the command to the command variable
+                strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
+                printf("Background job started: %s\n", jobList[i].formatted); // prints that the job started with its information
+                break; // ends loop because space was found in jobList
+            }
+        }
+
+    } else { // runs if fork fails
         printf("Fork failed...");
     }
 
@@ -434,15 +434,19 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
 
 int main() {
     for (int i = 0; i < MAX_JOBS; i++) { // iterates through all the jobs
-        jobList[i].quashID = 0; // sets all jobs to quashID of 0 to indicate it's clear
+        struct job newJob;
+        newJob.quashID = 0;
+        jobList[i] = newJob; // sets all jobs to quashID of 0 to indicate it's clear
     }
     char input[BSIZE]; // creates a character buffer to store input from the user
     printf("Welcome...\n");
     while(1) {
+        int status; // creates status int for waitpid
         for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
             //printf("i: %d, QUASHID: %d, PID: %d\n", i, jobList[i].quashID, jobList[i].pid);
-            if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
-                if (kill(jobList[i].pid, 0) == -1) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
+            if (jobList[i].quashID > 0) { // checks if the current quashID is not 0, meaning it is storing a process
+                printf("found running job\n");
+                if (waitpid(jobList[i].pid, &status, WNOHANG) != 0) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
                     printf("Completed: %s", jobList[i].formatted); // prints that the process completed
                     jobList[i].quashID = 0; // sets the quashID to 0 to signify the process ended
                 }
