@@ -16,6 +16,7 @@ struct job {
 
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
 int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
+    int status;
     char *exePtr[BSIZE];  // array of pointers to strings
 
     for (int i = 0; i < numberOfItems; i++) { // iterates through all values
@@ -24,10 +25,13 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
 
     exePtr[numberOfItems] = NULL; // makes value after all arguments NULL
 
+    /*
     for (int i = 0; i < numberOfItems + 1; i++) {
-        printf("%s\n", &exePtr[i]);
+        printf("exe: %s\n", exe[i]);
+        printf("exePtr: %s\n", &exePtr[i]);
     }
     printf("HERE\n");
+    */
     
     pid_t p = fork(); // calls fork on pid p
 
@@ -38,7 +42,9 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
         }
 
     } else if (p > 0) { // parent process
-        wait(); // parent waits for child to finish executing
+        if ((waitpid(p, &status, 0)) == -1) {
+            fprintf(stderr, "Process encountered error...");
+  } // parent waits for child to finish executing
     } else {
         printf("Fork failed...\n");
     }
@@ -148,6 +154,7 @@ int export(char* parsed[][BSIZE], int numberOfItems) {
 void printJobs() {
     //need an array that is storing all currently running jobs
     //iterate through the job array and print
+    printf("Print Jobs Called\n");
     for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
         if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
             printf("%s\n", jobList[i].formatted); // prints the process
@@ -214,7 +221,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             return 0; // returns 0 to signify success
 
         case 7:// Send POSIX Signal to Process - kill (Simple command)
-            if (kill(parsed[2], parsed[1]) == -1) { // calls kill with PID and then signal from input
+            if (kill(atoi(parsed[2]), atoi(parsed[1])) == -1) { // calls kill with PID and then signal from input after they've been converted to ints
                 return 2; // returns 2 to signify error in calling kill
             } 
             return 0; // returns 0 to signify success
@@ -420,9 +427,11 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     int numberOfItems = 0;
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
 
+    /*
     for(int i = 0; i < numberOfItems; i++) {
         printf("item number: %d {%s}\n", i, parsed[i]);
     }
+    */
 
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
