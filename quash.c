@@ -290,19 +290,20 @@ int parser(char *input, char parsed[256][256], char leftover[256])  //parameters
     
 
 
-int parseThenPass(char* input) { // parses input and runs corresponding command/executable
+void parseThenPass(char* input) { // parses input and runs corresponding command/executable
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
     char leftover[BSIZE], outputBuf[BSIZE];
     bzero(leftover, BSIZE);
     bzero(outputBuf, BSIZE);
     int numberOfItems = 0;
-    int midline = parser(input, parsed, leftover, numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
+    int midline = parser(input, parsed, leftover); // calls parser and stores the return value to check if pipes or redirection exist in the input
     
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
             int builtIn = builtInCmds(parsed, numberOfItems, outputBuf); // calls builtInCmds and stores return to check if success, no match, or error
             switch(builtIn) { // switch block to check if a command was success, no match, or error
                 case 0: // runs if built in command was matched and successful
+                    printf("%s", outputBuf); // prints the outputBuf which may store the echo output or be empty
                     break; // no other actions
 
                 case 1: // runs if no built in command was matched
@@ -321,21 +322,21 @@ int parseThenPass(char* input) { // parses input and runs corresponding command/
             break;
 
         case 1: // Pipes - | (Midline Modifier)
+            break;
 
         case 2: // Input Redirection - < (Midline Modifier)
+            break;
 
         case 3: // Output Redirection - > (Midline Modifier)
         // fork inside here to redirect output to something else and then call backExe within that.
         // this will cause a background parent to wait for the background process but the main process with keep going if it's supposed to be ran in the background
-
+            break;
         case 4: // Redirect Output While Appending Output - >> (Midline Modifier)
+            break;
 
     }
 
 }
-
-
-
 
 // Comments - # (Midline Modifier)
 
@@ -359,12 +360,15 @@ int main() {
             }
         }
         bzero(input, BSIZE); // empties the buffer
-        printf("[QUASH]$ ");
-        gets(input);
-        printf("\n");
-        parseThenPass(input);
+        printf("[QUASH]$ "); // prints line
+        gets(input); // gets input from user
+        printf("\n"); // prints new line for the output
+        parseThenPass(input); 
         //waits for user input at the start of each loop
         //takes the input and passes it to parser which utilizes it from there
         //error handling in here?
     }
+    return 0;
 }
+
+main();
