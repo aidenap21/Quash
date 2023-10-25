@@ -16,22 +16,28 @@ struct job {
 
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
 int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
-    int status;
+    char currentItem[BSIZE]; // will store word of current iteration
+    int curIndex = 0, nextIsVar = 0, status; // holds current index of exePtr, flag to check if next item is $, status of child
     char *exePtr[BSIZE];  // array of pointers to strings
 
-    for (int i = 0; i < numberOfItems; i++) { // iterates through all values
-        exePtr[i] = exe[i];  // sets the pointer values to the exe value
+    for (int i = 0; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
+        bzero(currentItem, BSIZE); // empties the buffer
+        if (exe[i][0] == '$') { // checks if environmental variable
+            nextIsVar = 1; // marks flag
+
+        } else if (nextIsVar == 1) { // runs if next item is variable
+            sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
+            exePtr[curIndex] = currentItem; // stores the converted environmental variable
+            curIndex++; // increments curIndex
+            nextIsVar = 0; // resets flag
+
+        } else { // runs if next item is just text
+            exePtr[curIndex] = exe[i]; // sets the next index of exePtr to the i index of exe
+            curIndex++; // increments curIndex
+        }
     }
 
-    exePtr[numberOfItems] = NULL; // makes value after all arguments NULL
-
-    /*
-    for (int i = 0; i < numberOfItems + 1; i++) {
-        printf("exe: %s\n", exe[i]);
-        printf("exePtr: %s\n", &exePtr[i]);
-    }
-    printf("HERE\n");
-    */
+    exePtr[curIndex] = NULL; // sets null to show end of args
     
     pid_t p = fork(); // calls fork on pid p
 
@@ -56,13 +62,28 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
 int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in executable name and arguments as a string. Also takes in unparsed to be passed into job list and takes in output that will be printed or passed somewhere else
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
+    char currentItem[BSIZE]; // will store word of current iteration
+    int curIndex = 0, nextIsVar = 0; // holds current index of exePtr, flag to check if next item is $
     char *exePtr[BSIZE];  // array of pointers to strings
 
-    for (int i = 0; i < numberOfItems - 1; i++) { // goes to numberOfItems - 1 to remove &
-        exePtr[i] = exe[i];  // sets the pointer values to the exe value
+    for (int i = 0; i < numberOfItems - 1; i++) { // iterates through parsed starting at index 1 to not print out the echo command word or &
+        bzero(currentItem, BSIZE); // empties the buffer
+        if (exe[i][0] == '$') { // checks if environmental variable
+            nextIsVar = 1; // marks flag
+
+        } else if (nextIsVar == 1) { // runs if next item is variable
+            sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
+            exePtr[curIndex] = currentItem; // stores the converted environmental variable
+            curIndex++; // increments curIndex
+            nextIsVar = 0; // resets flag
+
+        } else { // runs if next item is just text
+            exePtr[curIndex] = exe[i]; // sets the next index of exePtr to the i index of exe
+            curIndex++; // increments curIndex
+        }
     }
 
-    exePtr[numberOfItems - 1] = NULL; // makes value after all arguments NULL
+    exePtr[curIndex] = NULL; // sets null to show end of args
 
     pid_t p = fork(); // calls fork on pid p
 
@@ -70,14 +91,16 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
         int i;
         for (i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
             if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
+                struct job newJob;
                 char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
                 bzero(jobbuf, BSIZE); // empties the buffer
                 sprintf(jobbuf, "[%d] %d %s", i+1, getpid(), unparsed); // Adds job to buffer in format [QUASH PID] PID COMMAND
-                jobList[i].quashID = i+1; // sets the quashID as the index + 1
-                jobList[i].pid = getpid(); // sets the pid variable as its pid
-                strcpy(jobList[i].command, unparsed); // adds the command to the command variable
-                strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
-                printf("Background job started: %s\n", jobbuf); // prints that the job started with its information
+                newJob.quashID = i+1; // sets the quashID as the index + 1
+                newJob.pid = getpid(); // sets the pid variable as its pid
+                strcpy(newJob.command, unparsed); // adds the command to the command variable
+                strcpy(newJob.formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
+                jobList[i] = newJob; // adds newJob to the array
+                printf("Background job started: %s\n", newJob.formatted); // prints that the job started with its information
                 break; // ends loop because space was found in jobList
             }
         }
@@ -491,6 +514,7 @@ int main() {
     printf("Welcome...\n");
     while(1) {
         for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
+            //printf("i: %d, QUASHID: %d, PID: %d\n", i, jobList[i].quashID, jobList[i].pid);
             if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
                 if (kill(jobList[i].pid, 0) == -1) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
                     printf("Completed: %s", jobList[i].formatted); // prints that the process completed
