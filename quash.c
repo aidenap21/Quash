@@ -21,7 +21,7 @@ int forExe(char exe[][BSIZE]) { // takes in executable name and arguments as a s
     if (p == 0) { // child process
         if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing...\n"); // prints statement that exec fails
-            return 0; 
+            exit(0); // exits child process since it failed
         }
 
     } else { // parent process 
@@ -38,7 +38,8 @@ int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
-        for (int i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
+        int i;
+        for (i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
             if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
                 char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
                 bzero(jobbuf, BSIZE); // empties the buffer
@@ -47,16 +48,17 @@ int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and
                 jobList[i].pid = getpid(); // sets the pid variable as its pid
                 strcpy(jobList[i].command, unparsed); // adds the command to the command variable
                 strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
-                printf("Background job started: %s", jobbuf); // prints that the job started with its information
+                printf("Background job started: %s\n", jobbuf); // prints that the job started with its information
+                break; // ends loop because space was found in jobList
             }
         }
         if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
-            printf("Error executing...\n"); // prints statement that exec fails
-            return 0; 
+            printf("Error executing background process...\n"); // prints statement that exec fails
+            printf("Background job removed due to error: %s\n", jobList[i].formatted);
+            jobList[i].quashID = 0;
+            exit(0); // exits child process since it failed 
         }
 
-    } else { // parent process
-        
     }
 
     return 0;
@@ -72,10 +74,10 @@ int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes
         if (parsed[i][0] == '$') { // checks if environmental variable
             sprintf(currentItem, "%s ", getenv(parsed[i])); // gets environmental variable value and adds to output
         }
-        sprintf(currentItem, "%s ", parsed[i]); // adds to output
+        sprintf(currentItem, "%s", parsed[i]); // adds to output
         strcat(output, currentItem);
     }
-    strcat(output, "\n"); // adds new line to output
+    //strcat(output, "\n"); // adds new line to output
 }
 
 // Print All Running Background Process - jobs
@@ -97,11 +99,11 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
     
     allCmds[0] = "echo";
     allCmds[1] = "export";
-    allCmds[2] = "jobs";
-    allCmds[3] = "quit";
-    allCmds[4] = "exit";
+    allCmds[2] = "jobs\n";
+    allCmds[3] = "quit\n";
+    allCmds[4] = "exit\n";
     allCmds[5] = "cd";
-    allCmds[6] = "pwd";
+    allCmds[6] = "pwd\n";
     allCmds[7] = "kill";
 
     for (int i = 0; i < 8; i++) { // iterates through the command array
@@ -112,29 +114,37 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
     }
     switch(cmdType) {
         case -1: // Not valid simple command
+            printf("case -1\n");
             return 1; // returns 1 to signify no matching commands
 
         case 0: // Print String - echo (In Progress)
+            printf("case 0\n");
             echoString(parsed, numberOfItems, output); // calls echoString function
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
+            printf("case 1\n");
             if (setenv(parsed[1], parsed[2], 0) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
                 return 2; // returns 2 to signify error in input parameters
             }
             return 0; // returns 0 to signify success
 
         case 2: // Print All Running Background Process - jobs
+            printf("case 2\n");
             printJobs(); // calls printJobs function
             return 0; // returns 0 to signify success
 
         case 3: // Terminate Quash - quit (Simple command)
+            printf("case 3\n");
             exit(0); // ends the program
 
         case 4: // Terminate Quash - exit (Simple command)
+            printf("case 4\n");
             exit(0); // ends the program
 
         case 5: // Change Working Directory - cd (Simple command)
+            printf("case 5\n");
+            printf("%s", parsed[1]);
             if (chdir(parsed[1]) == -1) { // this may be wrong, need to verify what chdir returns if unsuccessful //VERIFY WITH TRY EXCEPT FOR INPUT
                 return 2; // returns 2 to signify error in calling cd
             }
@@ -144,7 +154,8 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             char directorybuf[BSIZE]; // creates a buffer for the current working directory
             bzero(directorybuf, BSIZE); // empties the buffer
             getcwd(directorybuf, BSIZE); // gets the current working directory and stores it in the buffer
-            printf("%s", directorybuf); // prints the buffer which stores the current directory
+            printf("%s\n", directorybuf); // prints the buffer which stores the current directory
+            return 0; // returns 0 to signify success
 
         case 7:// Send POSIX Signal to Process - kill (Simple command)
             if (kill(parsed[2], parsed[1]) == -1) { // calls kill with PID and then signal from input
@@ -309,7 +320,8 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                     break; // no other actions
 
                 case 1: // runs if no built in command was matched
-                    if (strcmp(parsed[sizeof(parsed[0])], "&") == 0) { // checks if the last item of the array is an & meaning it needs to run in the background
+                    printf("%s", parsed[numberOfItems - 1]);
+                    if (strcmp(parsed[numberOfItems - 1], "&\n") == 0) { // checks if the last item of the array is an & meaning it needs to run in the background
                         backExe(parsed, input); // executes the file in the background if possible
                     } else {
                         forExe(parsed); // executes the file in the foreground
@@ -369,5 +381,6 @@ int main() {
         //takes the input and passes it to parser which utilizes it from there
         //error handling in here?
     }
+
     return 0;
 }
