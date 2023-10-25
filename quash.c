@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>
+#include <strings.h>
 #include <errno.h>
 #include <sys/types.h> 
 #include <sys/wait.h> 
@@ -14,7 +15,7 @@ struct job {
     int pid; // actual system PID for the job
     char command[BSIZE]; // string storing the command that started the command
     char formatted[BSIZE]; // string storing the formatted version of the job showing the quashID, PID, and command line
-} jobList[MAX_JOBS];
+} jobList[MAX_JOBS + 1]; // makes it greater than max jobs to store QUASH main PID in end
 
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
 int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
@@ -52,7 +53,11 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
     } else if (p > 0) { // parent process
         if ((waitpid(p, &status, 0)) == -1) {
             fprintf(stderr, "Process encountered error...");
-  } // parent waits for child to finish executing
+        } // parent waits for child to finish executing
+        if (getpid() != jobList[MAX_JOBS].pid) { // validates that only the original process remains
+            printf("Exited pid: %d, Main pid: %d\n", getpid(), jobList[MAX_JOBS].pid);
+            exit(0);
+        }
     } else {
         printf("Fork failed...\n");
     }
@@ -119,6 +124,53 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
     return 0;
 }
 
+void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
+    char currentItem[BSIZE]; // will store word of current iteration
+    int curIndex = 0, nextIsVar = 0, p1[2]; // holds current index of exePtr, flag to check if next item is $, pipe
+    char *exePtr[BSIZE];  // array of pointers to strings
+
+    for (int i = 0; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
+        bzero(currentItem, BSIZE); // empties the buffer
+        if (exe[i][0] == '$') { // checks if environmental variable
+            nextIsVar = 1; // marks flag
+
+        } else if (nextIsVar == 1) { // runs if next item is variable
+            sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
+            exePtr[curIndex] = currentItem; // stores the converted environmental variable
+            curIndex++; // increments curIndex
+            nextIsVar = 0; // resets flag
+
+        } else { // runs if next item is just text
+            exePtr[curIndex] = exe[i]; // sets the next index of exePtr to the i index of exe
+            curIndex++; // increments curIndex
+        }
+    }
+
+    exePtr[curIndex] = NULL; // sets null to show end of args
+    
+    pipe(p1);
+    pid_t p = fork(); // calls fork on pid p
+
+    if (p == 0) { // child process
+        close(p1[0]);
+        dup2(p1[1], 1);
+        close(p1[1]);
+
+        if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
+            printf("Error executing...\n"); // prints statement that exec fails
+            exit(0); // exits child process since it failed
+        }
+
+    } else if (p > 0) { // parent process
+        close(p1[1]);
+        dup2(p1[0], 0);
+        close(p1[0]);
+        parseThenPass(leftover);
+        //exit(0);
+    } else {
+        printf("Fork failed...\n");
+    }
+}
 
 // Print String - echo (In Progress)
 int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in string to print (needs to remove "echo" work from start of string)
@@ -265,14 +317,14 @@ int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pL
         }
 
         if(input[j] == '|' && dub == 0 && single == 0) { // runs if on | and not in quotes
-            strncpy(leftover, input + j, inLen - j + 1); // truncates the remainder after the midline modifier and stores it
-            leftover[j - curStart + 1] = '\0';
+            strncpy(leftover, input + j + 2, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
+            //leftover[j - curStart + 1] = '\0';
             *pLen = curWord;
             return 1; // returns 1 to show | was found
         }
 
         if(input[j] == '<' && dub == 0 && single == 0) { // runs if on < and not in quotes
-            strncpy(leftover, input + j, inLen - j + 1); // truncates the remainder after the midline modifier and stores it
+            strncpy(leftover, input + j + 2, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
             leftover[j - curStart + 1] = '\0';
             *pLen = curWord;
             return 2; // returns 2 to show < was found
@@ -280,13 +332,13 @@ int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pL
 
         if(input[j] == '>' && dub == 0 && single == 0) { // runs if on < and not in quotes
             if(input[j+1] == '>') { // runs if next character is also > for >>
-                strncpy(leftover, input + j + 1, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
+                strncpy(leftover, input + j + 3, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
                 leftover[j - curStart + 1] = '\0';
                 *pLen = curWord;
                 return 4; // returns 4 to show >> was found
 
             } else {
-                strncpy(leftover, input + j, inLen - j + 1); // truncates the remainder after the midline modifier and stores it
+                strncpy(leftover, input + j + 2, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
                 leftover[j - curStart + 1] = '\0';
                 *pLen = curWord;
                 return 3; // returns 3 to show > was found
@@ -372,12 +424,13 @@ int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pL
 }
 
 void parseThenPass(char* input) { // parses input and runs corresponding command/executable
+    //printf("parseThenPass call\n");
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
     char leftover[BSIZE], outputBuf[BSIZE];
-    int numberOfItems = 0;
+    int numberOfItems = 0, background = 1; // creates variable to store number of parsed items and if there is an & at the end for midline modifiers
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
 
-    
+    //printf("midline flag: %d, leftover: %s\n", midline, leftover);
 
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
@@ -403,6 +456,44 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
             break;
 
         case 1: // Pipes - | (Midline Modifier)
+            // both foreground and background use the same function
+            // fork outside of function call before using
+            // wait pid if foreground but don't wait if background so that shell continues
+            // need to add check if first function isn't an executable and is built in instead
+            //printf("Pipe Call\n");
+            pipeExe(parsed, leftover, numberOfItems);
+            int status;
+            pid_t pid = fork();
+            if (pid == 0) {
+                pipeExe(parsed, leftover, numberOfItems);
+                exit(0);
+            } else if (pid > 0) {
+                if (background == 0) {
+                    for (int i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
+                        if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
+                            char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
+                            bzero(jobbuf, BSIZE); // empties the buffer
+                            sprintf(jobbuf, "[%d] %d %s", i+1, pid, input); // Adds job to buffer in format [QUASH ID] PID COMMAND
+                            
+                            jobList[i].quashID = i+1; // sets the quashID as the index + 1
+                            jobList[i].pid = pid; // sets the pid variable as the pid of the child
+                            strcpy(jobList[i].command, input); // adds the command to the command variable
+                            strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
+                            printf("Background job started: %s\n", jobbuf); // prints that the job started with its information
+                            bzero(jobbuf, BSIZE); // empties the buffer
+                            break; // ends loop because space was found in jobList
+                        }
+                    }
+                } else {
+                    if ((waitpid(pid, &status, 0)) == -1) {
+                        fprintf(stderr, "Process encountered error...");
+                    } // parent waits for child to finish executing
+                    if (getpid() != jobList[MAX_JOBS].pid) { // validates that only the original process remains
+                        printf("Exited pid: %d, Main pid: %d\n", getpid(), jobList[MAX_JOBS].pid);
+                        exit(0);
+                    }
+                }
+            }
             break;
 
         case 2: // Input Redirection - < (Midline Modifier)
@@ -435,7 +526,10 @@ int main() {
         newJob.quashID = 0;
         jobList[i] = newJob; // sets all jobs to quashID of 0 to indicate it's clear
     }
+    jobList[MAX_JOBS].quashID = -1;
+    jobList[MAX_JOBS].pid = getpid();
     char input[BSIZE]; // creates a character buffer to store input from the user
+    printf("PID: %d\n", getpid());
     printf("Welcome...\n");
     while(1) {
         int status; // creates status int for waitpid
