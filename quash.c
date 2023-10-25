@@ -171,21 +171,21 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     if(inLen == 0) //check if the input is empty
     { return 5; }
     
-    int single = 0, dub = 0, count = 0, environ = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
+    int single = 0, dub = 0, count = 0, environs = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
     
     for (int j = 0; j < inLen; j++) //Loop thru entire input
     { 
-        if(input[j] == '$')
+        if(input[j] == '$' && dub == 0 && single == 0)
         {
-            environ = 1;
+            environs = 1;
         }
         
-        if(input[j] == '/')
+        if(input[j] == '/' && dub == 0 && single == 0)
         {
-            environ = 0;
+            environs = 0;
         }
 
-        if(input[j] == '\'' && dub == 0) //Case for ''
+        if(input[j] == '\'' && dub == 0 && environs) //Case for ''
         {
             if (count == 0)
             { 
@@ -199,7 +199,7 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
             }
         }
         
-        if(input[j] == '\"' && single == 0) //Case for ""
+        if(input[j] == '\"' && single == 0 && environs) //Case for ""
         {
             if (count == 0)
             { 
@@ -213,7 +213,7 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
             } 
         }
         
-        if(single == 0 && dub == 0 && environ == 0) //Case for when the input is not surrounded by quotes
+        if(single == 0 && dub == 0 && environs == 0) //Case for when the input is not surrounded by quotes
         {
             if (input[j] == '#') //Check for comments
             {
