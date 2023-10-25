@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <unistd.h>
-#include <strings.h>
+#include <string.h>
 #include <errno.h>
 
 #define BSIZE 256
@@ -307,7 +307,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     bzero(leftover, BSIZE);
     bzero(outputBuf, BSIZE);
     int numberOfItems = 0;
-    int midline = parser(input, parsed, leftover, numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
+    int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
     
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
@@ -372,7 +372,8 @@ int main() {
         }
         bzero(input, BSIZE); // empties the buffer
         printf("[QUASH]$ "); // prints line
-        fgets(&input, BSIZE, stdin); // gets input from user
+        fgets(input, BSIZE, stdin); // gets input from user
+        printf("testttttt");
         printf("\n"); // prints new line for the output
         parseThenPass(input); 
         //waits for user input at the start of each loop
