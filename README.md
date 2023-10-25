@@ -3,15 +3,11 @@ Quite a Shell (quash) program using the UNIX system calls
 https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.html
 
 # To-Do List
-- Background Executables - & (Add output redirect to output buffer and fix job list adding)
 - Input Redirection - <
 - Output Redirection - >
 - Redirect Output While Appending Output - >>
 - Pipes - |
-- Set Value of Environmental Variable - export
-- Print All Running Background Process - jobs
-- Parser
-- Main Loop Set Up
+- parseThenPass Set Up
 
 # Bonus
 - Pipes and Redirects Can Be Mixed
@@ -25,3 +21,8 @@ https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.ht
 - Print String - echo
 - Foreground Executables (Add output redirect to output buffer)
 - Comments - #
+- Parser
+- Set Value of Environmental Variable - export
+- Print All Running Background Process - jobs
+- Main Loop Set Up
+- Background Executables - & (Add output redirect to output buffer and fix job list adding)

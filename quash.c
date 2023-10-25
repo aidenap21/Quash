@@ -92,8 +92,6 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
     if (p == 0) { // child process
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing background process...\n"); // prints statement that exec fails
-            //printf("Background job removed due to error: %s\n", jobList[i].formatted);
-            //jobList[i].quashID = 0;
             exit(0); // exits child process since it failed 
         }
 
@@ -102,13 +100,14 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
             if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
                 char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
                 bzero(jobbuf, BSIZE); // empties the buffer
-                sprintf(jobbuf, "[%d] %d %s", i+1, getpid(), unparsed); // Adds job to buffer in format [QUASH PID] PID COMMAND
+                sprintf(jobbuf, "[%d] %d %s", i+1, p, unparsed); // Adds job to buffer in format [QUASH ID] PID COMMAND
                 
                 jobList[i].quashID = i+1; // sets the quashID as the index + 1
                 jobList[i].pid = p; // sets the pid variable as the pid of the child
                 strcpy(jobList[i].command, unparsed); // adds the command to the command variable
                 strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
-                printf("Background job started: %s\n", jobList[i].formatted); // prints that the job started with its information
+                printf("Background job started: %s\n", jobbuf); // prints that the job started with its information
+                bzero(jobbuf, BSIZE); // empties the buffer
                 break; // ends loop because space was found in jobList
             }
         }
@@ -174,15 +173,11 @@ int export(char parsed[][BSIZE], int numberOfItems) {
 
 // Print All Running Background Process - jobs
 void printJobs() {
-    //need an array that is storing all currently running jobs
-    //iterate through the job array and print
-    printf("Print Jobs Called\n");
     for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
         if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
             printf("%s\n", jobList[i].formatted); // prints the process
         }
     }
-
 }
 
 // Commands that are built in with key words
@@ -445,12 +440,13 @@ int main() {
     while(1) {
         int status; // creates status int for waitpid
         for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
-            //printf("i: %d, QUASHID: %d, PID: %d\n", i, jobList[i].quashID, jobList[i].pid);
             if (jobList[i].quashID > 0) { // checks if the current quashID is not 0, meaning it is storing a process
-                printf("found running job\n");
                 if (waitpid(jobList[i].pid, &status, WNOHANG) != 0) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
-                    printf("Completed: %s", jobList[i].formatted); // prints that the process completed
+                    printf("Completed: %s\n", jobList[i].formatted); // prints that the process completed
                     jobList[i].quashID = 0; // sets the quashID to 0 to signify the process ended
+                    jobList[i].pid = 0; // resets pid value
+                    bzero(jobList[i].command, BSIZE); // empties command buffer
+                    bzero(jobList[i].formatted, BSIZE); // empties formatted buffer
                 }
             }
         }
