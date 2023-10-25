@@ -3,6 +3,8 @@
 #include <unistd.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/types.h> 
+#include <sys/wait.h> 
 
 #define BSIZE 256
 #define MAX_JOBS 100
