@@ -3,20 +3,19 @@
 #include <unistd.h>
 #include <strings.h>
 #include <errno.h>
-#include <sys/wait.h>
 
 #define BSIZE 256
 #define MAX_JOBS 100
 
 struct job {
-    int quashID = 0; // quashID for job, will be the job's value + 1
+    int quashID; // quashID for job, will be the job's value + 1
     int pid; // actual system PID for the job
     char command[BSIZE]; // string storing the command that started the command
     char formatted[BSIZE]; // string storing the formatted version of the job showing the quashID, PID, and command line
 } jobList[MAX_JOBS];
 
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
-int forExe(char** exe, char* output) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
+int forExe(char exe[][BSIZE]) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
@@ -26,14 +25,14 @@ int forExe(char** exe, char* output) { // takes in executable name and arguments
         }
 
     } else { // parent process 
-        wait(NULL); // parent waits for child to finish executing
+        wait(); // parent waits for child to finish executing
     }
 
     return 0;
 }
 
 // Background Executables - & (In Progress)  need to figure out how to redirect output to the output buffer and properly add to job list
-int backExe(char** exe, char* unparsed, char* output) { // takes in executable name and arguments as a string. Also takes in unparsed to be passed into job list and takes in output that will be printed or passed somewhere else
+int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and arguments as a string. Also takes in unparsed to be passed into job list and takes in output that will be printed or passed somewhere else
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
     pid_t p = fork(); // calls fork on pid p
@@ -65,32 +64,44 @@ int backExe(char** exe, char* unparsed, char* output) { // takes in executable n
 
 
 // Print String - echo (In Progress)
-int echoString(char* string) { // takes in string to print (needs to remove "echo" work from start of string)
+int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in string to print (needs to remove "echo" work from start of string)
     // maybe need different method than direct printing?
-    printf("%s\n", string); // prints string and new line
+    char currentItem[BSIZE];
+    for (int i = 2; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
+        bzero(currentItem, BSIZE);
+        if (strcmp(parsed[i][0], "$") == 0) { // checks if environmental variable
+            sprintf(currentItem, "%s ", getenv(parsed[i])); // gets environmental variable value and adds to output
+        }
+        sprintf(currentItem, "%s ", parsed[i]); // adds to output
+        strcat(output, currentItem);
+    }
+    strcat(output, "\n"); // adds new line to output
 }
 
+/*
 // Set Value of Environmental Variable - export
-int export(char *var, char *val) { // takes in variable name and value to update with (not positive about variable type) returns 0 on success and 1 on failure
+int export(char* parsed) { // takes in variable name and value to update with (not positive about variable type) returns 0 on success and 1 on failure
     //need to know what variables need to actually be defined that are going to be updated
     //check var and compare to variable names to figure out what to update
+    setenv
 }
+*/
 
 
 // Print All Running Background Process - jobs
-int printJobs() {
+void printJobs() {
     //need an array that is storing all currently running jobs
     //iterate through the job array and print
+    for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
+        if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
+            printf("%s\n", jobList[i].formatted); // prints the process
+        }
+    }
 
-}
-
-// List Directory Contents - ls
-int ls(char* arg) { // takes in single letter argument
-    //need to find list of arguments it takes and implement each one
 }
 
 // Commands that are built in with key words
-int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
+int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
     char* allCmds[8]; // creates an array that will store names of commands to verify which one was passed in
     
@@ -101,11 +112,10 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
     allCmds[4] = "exit";
     allCmds[5] = "cd";
     allCmds[6] = "pwd";
-    allCmds[7] = "ls";
-    allCmds[8] = "kill";
+    allCmds[7] = "kill";
 
     for (int i = 0; i++; i < 8) { // iterates through the command array
-        if (strcmp(input[0], allCmds[i]) == 0) { // compares the first index of input to the current command to see if it matches
+        if (strcmp(parsed[0], allCmds[i]) == 0) { // compares the first index of input to the current command to see if it matches
             cmdType = i; // sets the switch value number if it matches
             break; // breaks the loop since the match was already found
         } 
@@ -115,11 +125,11 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
             return 1; // returns 1 to signify no matching commands
 
         case 0: // Print String - echo (In Progress)
-            echoString(input); // calls echoString function
+            echoString(parsed, numberOfItems, output); // calls echoString function
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
-            if (export(input[1], input[2]) == 1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
+            if (setenv(parsed[1], parsed[2]) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
                 return 2; // returns 2 to signify error in input parameters
             }
             return 0; // returns 0 to signify success
@@ -135,24 +145,22 @@ int builtInCmds(char* input) { // takes in parsed input. Returns 0 for success, 
             exit(0); // ends the program
 
         case 5: // Change Working Directory - cd (Simple command)
-            if (chdir(input[1]) == -1) { // this may be wrong, need to verify what chdir returns if unsuccessful //VERIFY WITH TRY EXCEPT FOR INPUT
-                printf("Invalid directory..."); // state that the directory is invalid
-                return 2; // returns 2 to signify error in input parameters
+            if (chdir(parsed[1]) == -1) { // this may be wrong, need to verify what chdir returns if unsuccessful //VERIFY WITH TRY EXCEPT FOR INPUT
+                return 2; // returns 2 to signify error in calling cd
             }
             return 0;
 
-        case 6: // Print Path of Current Directory - pwd (Simple command)
+        case 6: ;// Print Path of Current Directory - pwd (Simple command)
             char directorybuf[BSIZE]; // creates a buffer for the current working directory
             bzero(directorybuf, BSIZE); // empties the buffer
             getcwd(directorybuf, BSIZE); // gets the current working directory and stores it in the buffer
+            printf("%s", directorybuf); // prints the buffer which stores the current directory
 
-
-        case 7: // List Directory Contents - ls
-            ls(input[1]); // calls ls with the first index value which is the letter parameter
-
-        case 8:// Send POSIX Signal to Process - kill (Simple command)
-            kill(input[1], input[2]); // VERIFY SIGNIAL IS SENT SOMEHOW??
-            return 0;
+        case 7:// Send POSIX Signal to Process - kill (Simple command)
+            if (kill(parsed[2], parsed[1]) == -1) { // calls kill with PID and then signal from input
+                return 2; // returns 2 to signify error in calling kill
+            } 
+            return 0; // returns 0 to signify success
     }
 }
 
@@ -283,10 +291,53 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     
 
 
-// Input Redirection - < (Midline Modifier)
-// Output Redirection - > (Midline Modifier)
-// Redirect Output While Appending Output - >> (Midline Modifier)
-// Pipes - | (Midline Modifier)
+int parseThenPass(char* input) { // parses input and runs corresponding command/executable
+    char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
+    char leftover[BSIZE], outputBuf[BSIZE];
+    bzero(leftover, BSIZE);
+    bzero(outputBuf, BSIZE);
+    int numberOfItems = 0;
+    int midline = parser(input, parsed, leftover, numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
+    
+    switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
+        case 0: ;// runs if there is no midline modifier
+            int builtIn = builtInCmds(parsed, numberOfItems, outputBuf); // calls builtInCmds and stores return to check if success, no match, or error
+            switch(builtIn) { // switch block to check if a command was success, no match, or error
+                case 0: // runs if built in command was matched and successful
+                    break; // no other actions
+
+                case 1: // runs if no built in command was matched
+                    if (strcmp(parsed[sizeof(parsed[0])], "&") == 0) { // checks if the last item of the array is an & meaning it needs to run in the background
+                        backExe(parsed, input); // executes the file in the background if possible
+                    } else {
+                        forExe(parsed); // executes the file in the foreground
+                    }
+                    break;
+
+                case 2: // runs if an error occured with one of the built in commands
+                    printf("Invalid syntax for '%s' command\n", parsed[0]); // states there was an error and what the attempted command was
+                    break;
+
+            }
+            break;
+
+        case 1: // Pipes - | (Midline Modifier)
+
+        case 2: // Input Redirection - < (Midline Modifier)
+
+        case 3: // Output Redirection - > (Midline Modifier)
+        // fork inside here to redirect output to something else and then call backExe within that.
+        // this will cause a background parent to wait for the background process but the main process with keep going if it's supposed to be ran in the background
+
+        case 4: // Redirect Output While Appending Output - >> (Midline Modifier)
+
+    }
+
+}
+
+
+
+
 // Comments - # (Midline Modifier)
 
 // Bonus
@@ -294,17 +345,25 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
 // Pipes and Redirects Work with Built In Commands
 
 int main() {
-    char* jobs[]; // creates array to store the running jobs
+    for (int i = 0; i < MAX_JOBS; i++) { // iterates through all the jobs
+        jobList[i].quashID = 0; // sets all jobs to quashID of 0 to indicate it's clear
+    }
+    char input[BSIZE]; // creates a character buffer to store input from the user
     printf("Welcome...\n");
     while(1) {
         for (int i = 0; i < MAX_JOBS; i++) { // iterates through jobList
             if (jobList[i].quashID != 0) { // checks if the current quashID is not 0, meaning it is storing a process
-                if (kill(0, jobList[i].pid) == -1) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
+                if (kill(jobList[i].pid, 0) == -1) { // sends a 0 signal to the PID which does nothing but will return -1 if it fails, meaning the process isn't running
                     printf("Completed: %s", jobList[i].formatted); // prints that the process completed
                     jobList[i].quashID = 0; // sets the quashID to 0 to signify the process ended
                 }
             }
         }
+        bzero(input, BSIZE); // empties the buffer
+        printf("[QUASH]$ ");
+        gets(input);
+        printf("\n");
+        parseThenPass(input);
         //waits for user input at the start of each loop
         //takes the input and passes it to parser which utilizes it from there
         //error handling in here?
