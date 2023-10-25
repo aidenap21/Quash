@@ -67,7 +67,7 @@ int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and
 int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in string to print (needs to remove "echo" work from start of string)
     // maybe need different method than direct printing?
     char currentItem[BSIZE];
-    for (int i = 2; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
+    for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE);
         if (parsed[i][0] == '$') { // checks if environmental variable
             sprintf(currentItem, "%s ", getenv(parsed[i])); // gets environmental variable value and adds to output
@@ -294,11 +294,11 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
 void parseThenPass(char* input) { // parses input and runs corresponding command/executable
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
     char leftover[BSIZE], outputBuf[BSIZE];
+    bzero(parsed, BSIZE);
     bzero(leftover, BSIZE);
     bzero(outputBuf, BSIZE);
     int numberOfItems = 0;
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
-    printf("%s", parsed[0]);
 
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
@@ -364,7 +364,6 @@ int main() {
         bzero(input, BSIZE); // empties the buffer
         printf("[QUASH]$ "); // prints line
         fgets(input, BSIZE, stdin); // gets input from user
-        printf("testttttt");
         printf("\n"); // prints new line for the output
         parseThenPass(input); 
         //waits for user input at the start of each loop
