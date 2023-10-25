@@ -103,7 +103,7 @@ void printJobs() {
 // Commands that are built in with key words
 int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
-    char* allCmds[8]; // creates an array that will store names of commands to verify which one was passed in
+    char* allCmds[9]; // creates an array that will store names of commands to verify which one was passed in
     
     allCmds[0] = "echo";
     allCmds[1] = "export";
@@ -129,7 +129,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
-            if (setenv(parsed[1], parsed[2]) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
+            if (setenv(parsed[1], parsed[2], 0) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
                 return 2; // returns 2 to signify error in input parameters
             }
             return 0; // returns 0 to signify success
@@ -362,7 +362,7 @@ int main() {
         }
         bzero(input, BSIZE); // empties the buffer
         printf("[QUASH]$ "); // prints line
-        gets(input); // gets input from user
+        fgets(&input, BSIZE, stdin); // gets input from user
         printf("\n"); // prints new line for the output
         parseThenPass(input); 
         //waits for user input at the start of each loop
@@ -371,5 +371,3 @@ int main() {
     }
     return 0;
 }
-
-main();
