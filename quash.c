@@ -15,26 +15,49 @@ struct job {
 } jobList[MAX_JOBS];
 
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
-int forExe(char exe[][BSIZE]) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
+int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
+    char *exePtr[BSIZE];  // array of pointers to strings
+
+    for (int i = 0; i < numberOfItems; i++) { // iterates through all values
+        exePtr[i] = exe[i];  // sets the pointer values to the exe value
+    }
+
+    exePtr[numberOfItems] = NULL; // makes value after all arguments NULL
+
+    for (int i = 0; i < numberOfItems + 1; i++) {
+        printf("%s\n", &exePtr[i]);
+    }
+    printf("HERE\n");
+    
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
-        if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
+        if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
             printf("Error executing...\n"); // prints statement that exec fails
             exit(0); // exits child process since it failed
         }
 
-    } else { // parent process 
+    } else if (p > 0) { // parent process
         wait(); // parent waits for child to finish executing
+    } else {
+        printf("Fork failed...\n");
     }
 
     return 0;
 }
 
 // Background Executables - & (In Progress)  need to figure out how to redirect output to the output buffer and properly add to job list
-int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and arguments as a string. Also takes in unparsed to be passed into job list and takes in output that will be printed or passed somewhere else
+int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in executable name and arguments as a string. Also takes in unparsed to be passed into job list and takes in output that will be printed or passed somewhere else
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
+    char *exePtr[BSIZE];  // array of pointers to strings
+
+    for (int i = 0; i < numberOfItems - 1; i++) { // goes to numberOfItems - 1 to remove &
+        exePtr[i] = exe[i];  // sets the pointer values to the exe value
+    }
+
+    exePtr[numberOfItems - 1] = NULL; // makes value after all arguments NULL
+
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
@@ -52,13 +75,15 @@ int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and
                 break; // ends loop because space was found in jobList
             }
         }
-        if (execvp(exe[0], exe) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
+        if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing background process...\n"); // prints statement that exec fails
             printf("Background job removed due to error: %s\n", jobList[i].formatted);
             jobList[i].quashID = 0;
             exit(0); // exits child process since it failed 
         }
 
+    } else if (p < 0) {
+        printf("Fork failed...");
     }
 
     return 0;
@@ -67,17 +92,56 @@ int backExe(char exe[][BSIZE], char* unparsed) { // takes in executable name and
 
 // Print String - echo (In Progress)
 int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in string to print (needs to remove "echo" work from start of string)
-    // maybe need different method than direct printing?
-    char currentItem[BSIZE];
+    char currentItem[BSIZE]; // will store word of current iteration
+    int nextIsVar = 0; // flag to check if value following $ is environmental variable
+    bzero(output, BSIZE); // empties the buffer
+
     for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
-        bzero(currentItem, BSIZE);
+        bzero(currentItem, BSIZE); // empties the buffer
         if (parsed[i][0] == '$') { // checks if environmental variable
-            sprintf(currentItem, "%s ", getenv(parsed[i])); // gets environmental variable value and adds to output
+            nextIsVar = 1; // marks flag
+
+        } else if (nextIsVar == 1) { // runs if next item is variable
+            sprintf(currentItem, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
+            strcat(output, currentItem); // concatenates the current item to the output
+            nextIsVar = 0; // resets flag
+
+        } else { // runs if next item is just text
+            sprintf(currentItem, "%s ", parsed[i]); // adds to output
+            strcat(output, currentItem); // concatenates the current item to the output
         }
-        sprintf(currentItem, "%s", parsed[i]); // adds to output
-        strcat(output, currentItem);
     }
-    //strcat(output, "\n"); // adds new line to output
+    strcat(output, "\n"); // adds new line to output
+    bzero(currentItem, BSIZE); // empties the buffer
+}
+
+// Set Value of Environmental Variable - export
+int export(char* parsed[][BSIZE], int numberOfItems) {
+    int variable, value, found = 0, otherVar = 0; // variable and value store the indices of the two and found is a check to see if variable is found to then find value
+    for (int i = 1; i < numberOfItems; i++) { // iterates through number of items
+        printf("iteration: %d, for item: %s\n", i, parsed[i]);
+        if (parsed[i][0] == '$' && found == 1) { // if $ and variable is already found it runs
+            otherVar = 1; // sets value to 1 to know that it will be getting variable value from another environmental variable
+            continue; // continues since $ isn't being used directly
+        }
+        if (found == 0) { // runs if variable name isn't found yet
+            variable = i; // stores the index of the variable
+            found = 1; // sets the found check to 1 to show variable has been found
+        } else { // runs if value hasn't been found yet
+            value = i; // stores the index of the value
+            found = 2;
+            break;
+        }
+    }
+    if (found != 2) { // runs if not enough parameters were passed through
+        return -1; // returns -1 to signify error
+    } else if (otherVar == 1){ // runs if the value being used is another environmental variable
+        printf("Updating variable '%s' with another variable '%s'\n", parsed[variable], parsed[value]);
+        return setenv(parsed[variable], getenv(parsed[value]), 1); // gets the value of the value and sets the variable to that, returns 0 for success and -1 for failure
+    } else {
+        printf("Updating variable '%s' with direct value '%s'\n", parsed[variable], parsed[value]);
+        return setenv(parsed[variable], parsed[value], 1); // sets the variable to the value, returns 0 for success and -1 for failure
+    }
 }
 
 // Print All Running Background Process - jobs
@@ -99,11 +163,11 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
     
     allCmds[0] = "echo";
     allCmds[1] = "export";
-    allCmds[2] = "jobs\n";
-    allCmds[3] = "quit\n";
-    allCmds[4] = "exit\n";
+    allCmds[2] = "jobs";
+    allCmds[3] = "quit";
+    allCmds[4] = "exit";
     allCmds[5] = "cd";
-    allCmds[6] = "pwd\n";
+    allCmds[6] = "pwd";
     allCmds[7] = "kill";
 
     for (int i = 0; i < 8; i++) { // iterates through the command array
@@ -114,37 +178,29 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
     }
     switch(cmdType) {
         case -1: // Not valid simple command
-            printf("case -1\n");
             return 1; // returns 1 to signify no matching commands
 
         case 0: // Print String - echo (In Progress)
-            printf("case 0\n");
             echoString(parsed, numberOfItems, output); // calls echoString function
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
-            printf("case 1\n");
-            if (setenv(parsed[1], parsed[2], 0) == -1) { // passed in first index as variable name and second as value // USE TRY EXCEPT TO VERIFY VALID INPUT WITH NUMBER OF ITEMS IN INPUT ARRAY
+            if (export(parsed, numberOfItems) == -1) { // calls export function
                 return 2; // returns 2 to signify error in input parameters
             }
             return 0; // returns 0 to signify success
 
         case 2: // Print All Running Background Process - jobs
-            printf("case 2\n");
             printJobs(); // calls printJobs function
             return 0; // returns 0 to signify success
 
         case 3: // Terminate Quash - quit (Simple command)
-            printf("case 3\n");
             exit(0); // ends the program
 
         case 4: // Terminate Quash - exit (Simple command)
-            printf("case 4\n");
             exit(0); // ends the program
 
         case 5: // Change Working Directory - cd (Simple command)
-            printf("case 5\n");
-            printf("%s", parsed[1]);
             if (chdir(parsed[1]) == -1) { // this may be wrong, need to verify what chdir returns if unsuccessful //VERIFY WITH TRY EXCEPT FOR INPUT
                 return 2; // returns 2 to signify error in calling cd
             }
@@ -175,9 +231,9 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
     //run error message if not enough or too many parameters are given instead of passing in function and finding an error
     //each function should have independent error handling if incorrect parameters are passed, parser should just check quantity and type
 
-int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  //parameters for input string and matrix to output the parsed data to
+int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pLen)  //parameters for input string and matrix to output the parsed data to
 {
-    int inLen = strlen(input); 
+    int inLen = strlen(input), curStart = 0, curWord = 0; 
     
     if(inLen == 0) //check if the input is empty
     { return 5; }
@@ -186,39 +242,86 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     
     for (int j = 0; j < inLen; j++) //Loop thru entire input
     { 
+        if(input[j] == ' ' && dub == 0 && single == 0) { // checks if current character is space and isn't in quotes
+            strncpy(parsed[curWord], input + curStart, j - curStart); // truncates the current word and stores it
+            curStart = j + 1; // resets the start value for the next word
+            curWord++; // increments the next available word position
+        }
+
+        if(input[j] == '|' && dub == 0 && single == 0) { // runs if on | and not in quotes
+            strncpy(leftover, input + j, inLen - j + 1); // truncates the remainder after the midline modifier and stores it
+            leftover[j - curStart + 1] = '\0';
+            *pLen = curWord;
+            return 1; // returns 1 to show | was found
+        }
+
+        if(input[j] == '<' && dub == 0 && single == 0) { // runs if on < and not in quotes
+            strncpy(leftover, input + j, inLen - j + 1); // truncates the remainder after the midline modifier and stores it
+            leftover[j - curStart + 1] = '\0';
+            *pLen = curWord;
+            return 2; // returns 2 to show < was found
+        }
+
+        if(input[j] == '>' && dub == 0 && single == 0) { // runs if on < and not in quotes
+            if(input[j+1] == '>') { // runs if next character is also > for >>
+                strncpy(leftover, input + j + 1, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
+                leftover[j - curStart + 1] = '\0';
+                *pLen = curWord;
+                return 4; // returns 4 to show >> was found
+
+            } else {
+                strncpy(leftover, input + j, inLen - j + 1); // truncates the remainder after the midline modifier and stores it
+                leftover[j - curStart + 1] = '\0';
+                *pLen = curWord;
+                return 3; // returns 3 to show > was found
+            }
+        }
+
         if(input[j] == '$' && dub == 0 && single == 0)
         {
-            environs = 1;
+            parsed[curWord][0] = '$'; // sets value to $ separate from following variable name itself
+            curWord++; // increments curWord to use the next position
+            curStart = j + 1; // resets curStart
+            environs = 1; // sets environs to 1 as flag to stop when / is found
         }
         
         if(input[j] == '/' && dub == 0 && single == 0)
         {
+            strncpy(parsed[curWord], input + curStart, j - curStart); // truncates the current word and stores it
+            curStart = j; // resets the start value for the next word but uses / as start instead of next character
+            curWord++; // increments the next available word position
             environs = 0;
         }
 
-        if(input[j] == '\'' && dub == 0 && environs) //Case for ''
+        if(input[j] == '\'' && dub == 0 && environs == 0) //Case for ''
         {
-            if (count == 0)
+            if (count == 0) // beginning quote
             { 
                 single = 1; 
                 count++;
             }
-            else 
+            else // ending quote
             { 
+                strncpy(parsed[curWord], input + curStart + 1, j - curStart - 1); // adds extra 1 to start to remove quote characters
+                curStart = j + 1; // resets the start value for the next word
+                curWord++; // increments the next available word position
                 single = 0; 
                 count--;
             }
         }
         
-        if(input[j] == '\"' && single == 0 && environs) //Case for ""
+        if(input[j] == '\"' && single == 0 && environs == 0) //Case for ""
         {
-            if (count == 0)
+            if (count == 0) // beginning quote
             { 
                 dub = 1; 
                 count++;
             }
-            else 
+            else // ending quote
             { 
+                strncpy(parsed[curWord], input + curStart + 1, j - curStart - 1); // adds extra 1 to start to remove quote characters
+                curStart = j + 1; // resets the start value for the next word
+                curWord++; // increments the next available word position
                 dub = 0; 
                 count--;
             } 
@@ -229,7 +332,10 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
             if (input[j] == '#') //Check for comments
             {
                 if(j == 0) //Return if there is a comment at the very start
-                { return 5; } 
+                { 
+                    *pLen = curWord;
+                    return 5;
+                } 
                 
                 input[j] = '\0'; //End the readable code after comment
                 break;
@@ -237,11 +343,18 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
             
             if (input[j] == '=') //Replace any '=' with spaces
             {
-                input[j] = ' '; 
+                strncpy(parsed[curWord], input + curStart, j - curStart); // truncates the current word and stores it
+                curStart = j + 1; // resets the start value for the next word
+                curWord++; // increments the next available word position 
             }
         }
     }
-            
+    strncpy(parsed[curWord], input + curStart, inLen - curStart); // truncates the current word and stores it
+    curWord++;
+    *pLen = curWord; // sets number of items as current word number
+    return 0; // returns 0 to signify no midline modifiers
+
+    /*      
     int i = 0; 
     char *temp; //Temp buffer to hold the current space-separated item
     while ((temp = strsep(&input, " ")) != NULL) //Separate everything by spaces
@@ -296,20 +409,20 @@ int parser(char *input, char parsed[256][256], char leftover[256], int *pLen)  /
     }
     *pLen = i;
     return 0;
+    */
 
 }
-    
-    
 
 
 void parseThenPass(char* input) { // parses input and runs corresponding command/executable
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
     char leftover[BSIZE], outputBuf[BSIZE];
-    bzero(parsed, BSIZE);
-    bzero(leftover, BSIZE);
-    bzero(outputBuf, BSIZE);
     int numberOfItems = 0;
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
+
+    for(int i = 0; i < numberOfItems; i++) {
+        printf("item number: %d {%s}\n", i, parsed[i]);
+    }
 
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
@@ -320,11 +433,10 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                     break; // no other actions
 
                 case 1: // runs if no built in command was matched
-                    printf("%s", parsed[numberOfItems - 1]);
-                    if (strcmp(parsed[numberOfItems - 1], "&\n") == 0) { // checks if the last item of the array is an & meaning it needs to run in the background
-                        backExe(parsed, input); // executes the file in the background if possible
+                    if (parsed[numberOfItems - 1][0] == '&') { // checks if the last item of the array is an & meaning it needs to run in the background
+                        backExe(parsed, input, numberOfItems); // executes the file in the background if possible
                     } else {
-                        forExe(parsed); // executes the file in the foreground
+                        forExe(parsed, numberOfItems); // executes the file in the foreground
                     }
                     break;
 
@@ -349,7 +461,11 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
             break;
 
     }
-
+    for(int i = 0; i < BSIZE; i++) {
+        bzero(parsed[i], BSIZE);
+    }
+    bzero(leftover, BSIZE);
+    bzero(outputBuf, BSIZE);
 }
 
 // Comments - # (Midline Modifier)
@@ -375,7 +491,7 @@ int main() {
         }
         bzero(input, BSIZE); // empties the buffer
         printf("[QUASH]$ "); // prints line
-        fgets(input, BSIZE, stdin); // gets input from user
+        scanf(" %[^\n]%*c", input); // gets input from user
         parseThenPass(input); 
         //waits for user input at the start of each loop
         //takes the input and passes it to parser which utilizes it from there
