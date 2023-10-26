@@ -58,10 +58,10 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
     if (p == 0) { // child process
         if (nextIsOutFile == 1) { // runs if > was found
             FILE *outputFile;
-            outputFile = freopen(exe[i+1], "w", stdout);
+            outputFile = freopen(exe[i+1], "w", stdout); // exe[i+1] is the name of the output file and opens in write mode
         } else if (nextIsOutFile == 2) { // runs if >> was found
             FILE *outputFile;
-            outputFile = freopen(exe[i+1], "a", stdout);
+            outputFile = freopen(exe[i+1], "a", stdout); // exe[i+1] is the name of the output file and opens in append mode
         }
         //printf("CHILD PID IN FOREXE: %d\n", getpid());
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
@@ -230,10 +230,10 @@ void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
 }
 
 // Print String - echo (In Progress)
-int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to print (needs to remove "echo" work from start of string)
-    char currentItem[BSIZE], output[BSIZE]; // will store word of current iteration
-    int nextIsVar = 0, nextIsInFile = 0, nextIsOutFile = 0; // flag to check if value following $ is environmental variable
-    bzero(output, BSIZE); // empties the buffer
+void echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to print (needs to remove "echo" work from start of string)
+    char currentItem[BSIZE];//, output[BSIZE]; // will store word of current iteration
+    int nextIsVar = 0, nextIsInFile = 0;//, nextIsOutFile = 0; // flag to check if value following $ is environmental variable
+    //bzero(output, BSIZE); // empties the buffer
 
     for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE); // empties the buffer
@@ -241,27 +241,32 @@ int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to 
             nextIsVar = 1; // marks flag for next iteration
 
         } else if (strcmp(parsed[i], ">>") == 0) { // checks if append output cae is next
-            nextIsOutFile = 2; // marks flag for next iteration
+            //nextIsOutFile = 2; // marks flag for next iteration
+            break;
 
         } else if (parsed[i][0] == '>') { // checks if output case is next
-            nextIsOutFile = 1; // marks flag for next iteration
+            //nextIsOutFile = 1; // marks flag for next iteration
+            break;
 
         } else if (parsed[i][0] == '<') { // checks if input case is next
             nextIsInFile = 1; // marks flag for next iteration
 
         } else if (nextIsVar == 1) { // runs if item is variable
-            sprintf(currentItem, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
-            strcat(output, currentItem); // concatenates the current item to the output
+            //sprintf(currentItem, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
+            //strcat(output, currentItem); // concatenates the current item to the output
+            printf("%s", getenv(parsed[i])); // gets environmental variable value and prints
             nextIsVar = 0; // resets flag
 
         } else if (nextIsInFile == 1) { // runs if item is file
             FILE *inputFile; // creates file type
             inputFile = fopen(parsed[i], "r"); // opens file in read mode
             fgets(currentItem, BSIZE, inputFile); // reads from the file and stores it in the buffer
-            strcat(output, currentItem); // concatenates the current item to the output
+            //strcat(output, currentItem); // concatenates the current item to the output
+            printf("%s", currentItem); // prints file
             fclose(inputFile); // closes the file
             break; 
 
+        /*
         } else if (nextIsOutFile == 1) { // runs if item is file
             //strcat(output, "\n"); // adds new line to output
             FILE *outputFile; // creates file type
@@ -278,18 +283,24 @@ int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to 
             fprintf(outputFile, currentItem); // writes the output to the file
             fclose(outputFile); // closes the file
             break;
+        */
 
         } else { // runs if next item is just text
-            sprintf(currentItem, "%s ", parsed[i]); // adds to output
-            strcat(output, currentItem); // concatenates the current item to the output
+            //sprintf(currentItem, "%s ", parsed[i]); // adds to output
+            //strcat(output, currentItem); // concatenates the current item to the output
+            printf("%s ", parsed[i]); // print the current item
         }
     }
 
+    printf("\n"); // prints new line
+    /*
     if (nextIsOutFile == 0) { // runs if the it didn't output to a file
         printf("%s\n", output); // prints the output
     }
+    
     bzero(currentItem, BSIZE); // empties the buffer
     bzero(output, BSIZE); // empties the buffer
+    */
 }
 
 // Set Value of Environmental Variable - export
@@ -534,8 +545,9 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     //printf("parseThenPass call\n");
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
     char leftover[BSIZE];
-    int numberOfItems = 0, background = 1; // creates variable to store number of parsed items and if there is an & at the end for midline modifiers
-    int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
+    int numberOfItems = 0, background = 1, nextIsOutFile = 0, outputRedirect; // creates variable to store number of parsed items and if there is an & at the end for midline modifiers
+    int pipes = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
+    FILE *outputFile; // creates outputFile
 
     /*
     for(int i = 0; i < numberOfItems; i++) { // prints each parsed item
@@ -544,9 +556,49 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     */
     //printf("midline flag: %d, leftover: %s\n", midline, leftover);
 
-    switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
+    switch(pipes) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
+            for (outputRedirect = 0; outputRedirect < numberOfItems; outputRedirect++) { // iterates through parsed to find output redirect
+                if (strcmp(parsed[outputRedirect], ">>") == 0) { // checks if append output cae is next
+                    nextIsOutFile = 2; // marks flag for next iteration
+                    break;
+
+                } else if (parsed[outputRedirect][0] == '>') { // checks if output case is next
+                    nextIsOutFile = 1; // marks flag for next iteration
+                    break;
+                }
+            }
+
+            if (nextIsOutFile == 1) { // runs if > was found
+                printf("found >\n");
+                outputFile = freopen(parsed[outputRedirect+1], "w", stdout); // opens file name from parsed[outputRedirect+1] in write mode
+                if (outputFile == NULL) { // runs if error opening file
+                    printf("Error opening output file...\n");
+                    break;
+                }
+            } else if (nextIsOutFile == 2) { // runs if >> was found
+                printf("found >>\n");
+                outputFile = freopen(parsed[outputRedirect+1], "a", stdout); // opens file name from parsed[outputRedirect+1] in append mode
+                if (outputFile == NULL) { // runs if error opening file
+                    printf("Error opening output file...\n");
+                    break;
+                }
+            }
+
             int builtIn = builtInCmds(parsed, numberOfItems); // calls builtInCmds and stores return to check if success, no match, or error
+            
+            printf("exited builtIn\n");
+            if (nextIsOutFile > 0) { // checks if output was redirected
+                printf("in if statement before close\n");
+                fflush(outputFile);
+                printf("after fflush\n");
+                if (fclose(outputFile) == EOF) { // runs if error closing file
+                    perror("Error closing output file...\n");
+                    break;
+                }
+                printf("after close\n");
+            }
+
             switch(builtIn) { // switch block to check if a command was success, no match, or error
                 case 0: // runs if built in command was matched and successful
                     break; // no other actions
