@@ -1,4 +1,4 @@
-word 
+wordddddddddd 
 exited builtIn
 in if statement before close
 after fflush

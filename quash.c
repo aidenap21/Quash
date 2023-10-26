@@ -593,6 +593,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                 fflush(outputFile);
                 printf("after fflush\n");
                 if (fclose(outputFile) == EOF) { // runs if error closing file
+                    exit(0);
                     perror("Error closing output file...\n");
                     break;
                 }
