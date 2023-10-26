@@ -160,6 +160,82 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
     return 0;
 }
 
+void handlePipes(char exe[][BSIZE], int numberOfItems) { // if parsing everything then check last index to see if it has & to run background
+    char outputBuffer[BSIZE], currentItem[BSIZE]; // will store word of current iteration
+    int nextStart = 0, curPipe = 0, i, curIndex = 0, nextIsVar = 0, nextIsOutFile = 0, status, pipeArray[BSIZE][2]; // holds current index of exePtr, flag to check if next item is $, status of child
+    
+
+    while(nextStart < numberOfItems) {
+        for (i = nextStart; i < numberOfItems; i++) {
+            bzero(currentItem, BSIZE);
+            char *exePtr[BSIZE];  // array of pointers to strings
+
+            if (exe[i][0] == '|') { // checks if pipe
+                nextStart = i + 1; // stores the location of the next item
+                break; // breaks
+
+            } else if (exe[i][0] == '$') { // checks if environmental variable
+                nextIsVar = 1; // marks flag
+
+            } else if (exe[i][0] == '<') { // runs if input symbol
+                continue; // continues to not add it to the array
+
+            } else if (strcmp(exe[i], ">>") == 0) { // checks if append output cae is next
+                nextIsOutFile = 2; // marks flag for next iteration
+                break;
+
+            } else if (exe[i][0] == '>') { // checks if output case is next
+                nextIsOutFile = 1; // marks flag for next iteration
+                break;
+
+            } else if (nextIsVar == 1) { // runs if next item is variable
+                sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
+                exePtr[curIndex] = currentItem; // stores the converted environmental variable
+                curIndex++; // increments curIndex
+                nextIsVar = 0; // resets flag
+
+            } else { // runs if next item is just text
+                exePtr[curIndex] = exe[i]; // sets the next index of exePtr to the i index of exe
+                curIndex++; // increments curIndex
+            }
+        }
+
+            exePtr[curIndex] = NULL; // sets null to show end of args
+            pipe(pipeArray);
+            pid_t p = fork(); // calls fork on pid p
+
+            if (p == 0) { // child process\
+            // array of pipes, read from previous index and then write to the next one to pass between the loop
+            // parent is gonna wait until child is done but no behavior happens in parent and it waits till next loop
+                close(pipeArray[curPipe][0]);
+                dup2(pipeArray[curPipe][1], 1);
+                close(pipeArray[curPipe][0]);
+
+                if (nextIsOutFile == 1) { // runs if > was found
+                    FILE *outputFile;
+                    outputFile = freopen(exe[i+1], "w", stdout); // exe[i+1] is the name of the output file and opens in write mode
+                } else if (nextIsOutFile == 2) { // runs if >> was found
+                    FILE *outputFile;
+                    outputFile = freopen(exe[i+1], "a", stdout); // exe[i+1] is the name of the output file and opens in append mode
+                }
+                //printf("CHILD PID IN FOREXE: %d\n", getpid());
+                if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
+                    printf("Error executing...\n"); // prints statement that exec fails
+                    exit(0); // exits child process since it failed
+                }
+
+            } else if (p < 0) { // parent process
+                printf("Fork failed...\n");
+            }
+            
+            if ((waitpid(p, &status, 0)) == -1) {
+                    fprintf(stderr, "Process encountered error...\n");
+                }
+        
+    }
+}
+
+/*
 void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
     char currentItem[BSIZE]; // will store word of current iteration
     int curIndex = 0, nextIsVar = 0, status, p1[2]; // holds current index of exePtr, flag to check if next item is $, status, pipe
@@ -228,6 +304,7 @@ void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
     }
     printf("PARENT FINISHED WAITING IN PIPE FOR PID2: %d\n", pid2);
 }
+*/
 
 // Print String - echo (In Progress)
 void echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to print (needs to remove "echo" work from start of string)
@@ -549,11 +626,11 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     int pipes = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
     FILE *outputFile; // creates outputFile
 
-    /*
+    
     for(int i = 0; i < numberOfItems; i++) { // prints each parsed item
         printf("item %d: {%s}\n", i, parsed[i]);
     }
-    */
+    
     //printf("midline flag: %d, leftover: %s\n", midline, leftover);
 
     switch(pipes) { // switch block to check if the parser needs to be called again for pipe or redirect
