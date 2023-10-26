@@ -20,13 +20,24 @@ struct job {
 // Foreground Executables (In Progress) need to figure out how to redirect output to the output buffer
 int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name and arguments as a string. Also takes in output that will be printed or passed somewhere else
     char currentItem[BSIZE]; // will store word of current iteration
-    int curIndex = 0, nextIsVar = 0, status; // holds current index of exePtr, flag to check if next item is $, status of child
+    int i, curIndex = 0, nextIsVar = 0, nextIsOutFile = 0, status; // holds current index of exePtr, flag to check if next item is $, status of child
     char *exePtr[BSIZE];  // array of pointers to strings
 
-    for (int i = 0; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
+    for (i = 0; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE); // empties the buffer
         if (exe[i][0] == '$') { // checks if environmental variable
             nextIsVar = 1; // marks flag
+
+        } else if (exe[i][0] == '<') { // runs if input symbol
+            continue; // continues to not add it to the array
+
+        } else if (strcmp(exe[i], ">>") == 0) { // checks if append output cae is next
+            nextIsOutFile = 2; // marks flag for next iteration
+            break;
+
+        } else if (exe[i][0] == '>') { // checks if output case is next
+            nextIsOutFile = 1; // marks flag for next iteration
+            break;
 
         } else if (nextIsVar == 1) { // runs if next item is variable
             sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
@@ -45,22 +56,28 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
+        if (nextIsOutFile == 1) { // runs if > was found
+            FILE *outputFile;
+            outputFile = freopen(exe[i+1], "w", stdout);
+        } else if (nextIsOutFile == 2) { // runs if >> was found
+            FILE *outputFile;
+            outputFile = freopen(exe[i+1], "a", stdout);
+        }
+        //printf("CHILD PID IN FOREXE: %d\n", getpid());
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
             printf("Error executing...\n"); // prints statement that exec fails
             exit(0); // exits child process since it failed
         }
 
-    } else if (p > 0) { // parent process
-        if ((waitpid(p, &status, 0)) == -1) {
-            fprintf(stderr, "Process encountered error...");
-        } // parent waits for child to finish executing
-        if (getpid() != jobList[MAX_JOBS].pid) { // validates that only the original process remains
-            printf("Exited pid: %d, Main pid: %d\n", getpid(), jobList[MAX_JOBS].pid);
-            exit(0);
-        }
-    } else {
+    } else if (p < 0) { // parent process
         printf("Fork failed...\n");
     }
+    
+    if ((waitpid(p, &status, 0)) == -1) {
+            fprintf(stderr, "Process encountered error...\n");
+        } // parent waits for child to finish executing
+    //printf("PARENT FINISHED WAITING\n");
+    
 
     return 0;
 }
@@ -70,13 +87,24 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
     //should be similar to forExe but need to hide the process in the background
     //maybe pipes that don't wait for it to return so that other things can happen?
     char currentItem[BSIZE]; // will store word of current iteration
-    int curIndex = 0, nextIsVar = 0; // holds current index of exePtr, flag to check if next item is $
+    int i, curIndex = 0, nextIsVar = 0, nextIsOutFile = 0; // holds current index of exePtr, flag to check if next item is $
     char *exePtr[BSIZE];  // array of pointers to strings
 
-    for (int i = 0; i < numberOfItems - 1; i++) { // iterates through parsed starting at index 1 to not print out the echo command word or &
+    for (i = 0; i < numberOfItems - 1; i++) { // iterates through parsed starting at index 1 to not print out the echo command word or &
         bzero(currentItem, BSIZE); // empties the buffer
         if (exe[i][0] == '$') { // checks if environmental variable
             nextIsVar = 1; // marks flag
+
+        } else if (exe[i][0] == '<') { // runs if input symbol
+            continue; // continues to not add it to the array
+
+        } else if (strcmp(exe[i], ">>") == 0) { // checks if append output cae is next
+            nextIsOutFile = 2; // marks flag for next iteration
+            break;
+
+        } else if (exe[i][0] == '>') { // checks if output case is next
+            nextIsOutFile = 1; // marks flag for next iteration
+            break;
 
         } else if (nextIsVar == 1) { // runs if next item is variable
             sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
@@ -95,22 +123,30 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
     pid_t p = fork(); // calls fork on pid p
 
     if (p == 0) { // child process
+        if (nextIsOutFile == 1) {
+            FILE *outputFile;
+            outputFile = freopen(exe[i+1], "w", stdout);
+        } else if (nextIsOutFile == 2) {
+            FILE *outputFile;
+            outputFile = freopen(exe[i+1], "a", stdout);
+        }
+
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing background process...\n"); // prints statement that exec fails
             exit(0); // exits child process since it failed 
         }
 
     } else if (p > 0) { // parent process
-        for (int i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
-            if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
+        for (int i = (MAX_JOBS - 1); i >= 0; i--) { // iterates through indices of jobs array
+            if (jobList[i].quashID != 0 || i == 0) { // checks if the current quashID value is 1 meaning that it is not empty, sets next value after as new job
                 char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
                 bzero(jobbuf, BSIZE); // empties the buffer
                 sprintf(jobbuf, "[%d] %d %s", i+1, p, unparsed); // Adds job to buffer in format [QUASH ID] PID COMMAND
                 
-                jobList[i].quashID = i+1; // sets the quashID as the index + 1
-                jobList[i].pid = p; // sets the pid variable as the pid of the child
-                strcpy(jobList[i].command, unparsed); // adds the command to the command variable
-                strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
+                jobList[i+1].quashID = i+1; // sets the quashID as the index + 1
+                jobList[i+1].pid = p; // sets the pid variable as the pid of the child
+                strcpy(jobList[i+1].command, unparsed); // adds the command to the command variable
+                strcpy(jobList[i+1].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
                 printf("Background job started: %s\n", jobbuf); // prints that the job started with its information
                 bzero(jobbuf, BSIZE); // empties the buffer
                 break; // ends loop because space was found in jobList
@@ -118,7 +154,7 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
         }
 
     } else { // runs if fork fails
-        printf("Fork failed...");
+        printf("Fork failed...\n");
     }
 
     return 0;
@@ -126,13 +162,17 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
 
 void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
     char currentItem[BSIZE]; // will store word of current iteration
-    int curIndex = 0, nextIsVar = 0, p1[2]; // holds current index of exePtr, flag to check if next item is $, pipe
+    int curIndex = 0, nextIsVar = 0, status, p1[2]; // holds current index of exePtr, flag to check if next item is $, status, pipe
     char *exePtr[BSIZE];  // array of pointers to strings
+    pid_t pid1, pid2;
 
     for (int i = 0; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE); // empties the buffer
         if (exe[i][0] == '$') { // checks if environmental variable
             nextIsVar = 1; // marks flag
+
+        } else if (exe[i][0] == '<') { // runs if input symbol
+            continue; // continues to not add it to the array
 
         } else if (nextIsVar == 1) { // runs if next item is variable
             sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
@@ -149,9 +189,10 @@ void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
     exePtr[curIndex] = NULL; // sets null to show end of args
     
     pipe(p1);
-    pid_t p = fork(); // calls fork on pid p
 
-    if (p == 0) { // child process
+    pid1 = fork(); // calls fork on pid p
+    if (pid1 == 0) { // first child process
+        printf("PID OF CHILD 1: %d\n", getpid());
         close(p1[0]);
         dup2(p1[1], 1);
         close(p1[1]);
@@ -160,41 +201,95 @@ void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
             printf("Error executing...\n"); // prints statement that exec fails
             exit(0); // exits child process since it failed
         }
+    } else if (pid1 < 1) {
+        printf("Fork failed...\n");
+    }
 
-    } else if (p > 0) { // parent process
+    pid2 = fork(); // calls fork on pid p
+    if (pid2 == 0) { // second child process
+        printf("PID OF CHILD 2: %d\n", getpid());
         close(p1[1]);
         dup2(p1[0], 0);
         close(p1[0]);
+
         parseThenPass(leftover);
-        //exit(0);
-    } else {
+        exit(0);
+    } else if (pid2 < 1) {
         printf("Fork failed...\n");
     }
+
+    if ((waitpid(pid1, &status, 0)) == -1) {
+        fprintf(stderr, "Process encountered error...\n");
+    }
+    printf("PARENT FINISHED WAITING IN PIPE FOR PID1: %d\n", pid1);
+
+    if ((waitpid(pid2, &status, 0)) == -1) {
+        fprintf(stderr, "Process encountered error...\n");
+    }
+    printf("PARENT FINISHED WAITING IN PIPE FOR PID2: %d\n", pid2);
 }
 
 // Print String - echo (In Progress)
-int echoString(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in string to print (needs to remove "echo" work from start of string)
-    char currentItem[BSIZE]; // will store word of current iteration
-    int nextIsVar = 0; // flag to check if value following $ is environmental variable
+int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to print (needs to remove "echo" work from start of string)
+    char currentItem[BSIZE], output[BSIZE]; // will store word of current iteration
+    int nextIsVar = 0, nextIsInFile = 0, nextIsOutFile = 0; // flag to check if value following $ is environmental variable
     bzero(output, BSIZE); // empties the buffer
 
     for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE); // empties the buffer
         if (parsed[i][0] == '$') { // checks if environmental variable
-            nextIsVar = 1; // marks flag
+            nextIsVar = 1; // marks flag for next iteration
 
-        } else if (nextIsVar == 1) { // runs if next item is variable
+        } else if (strcmp(parsed[i], ">>") == 0) { // checks if append output cae is next
+            nextIsOutFile = 2; // marks flag for next iteration
+
+        } else if (parsed[i][0] == '>') { // checks if output case is next
+            nextIsOutFile = 1; // marks flag for next iteration
+
+        } else if (parsed[i][0] == '<') { // checks if input case is next
+            nextIsInFile = 1; // marks flag for next iteration
+
+        } else if (nextIsVar == 1) { // runs if item is variable
             sprintf(currentItem, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
             strcat(output, currentItem); // concatenates the current item to the output
             nextIsVar = 0; // resets flag
+
+        } else if (nextIsInFile == 1) { // runs if item is file
+            FILE *inputFile; // creates file type
+            inputFile = fopen(parsed[i], "r"); // opens file in read mode
+            fgets(currentItem, BSIZE, inputFile); // reads from the file and stores it in the buffer
+            strcat(output, currentItem); // concatenates the current item to the output
+            fclose(inputFile); // closes the file
+            break; 
+
+        } else if (nextIsOutFile == 1) { // runs if item is file
+            //strcat(output, "\n"); // adds new line to output
+            FILE *outputFile; // creates file type
+            outputFile = fopen(parsed[i], "w"); // opens file in write mode
+            fprintf(outputFile, output); // writes the output to the file
+            fclose(outputFile); // closes the file
+            break;
+
+        } else if (nextIsOutFile == 2) { // runs if item is file
+            //strcat(output, "\n"); // adds new line to output
+            sprintf(currentItem, "\n%s", output); // adds new line to the output and stores it in current item
+            FILE *outputFile; // creates file type
+            outputFile = fopen(parsed[i], "a"); // opens file in append mode
+            fprintf(outputFile, currentItem); // writes the output to the file
+            fclose(outputFile); // closes the file
+            break;
 
         } else { // runs if next item is just text
             sprintf(currentItem, "%s ", parsed[i]); // adds to output
             strcat(output, currentItem); // concatenates the current item to the output
         }
     }
-    strcat(output, "\n"); // adds new line to output
+
+    if (nextIsOutFile == 0) { // runs if the it didn't output to a file
+        printf("%s\n", output); // prints the output
+    }
     bzero(currentItem, BSIZE); // empties the buffer
+    bzero(output, BSIZE); // empties the buffer
 }
 
 // Set Value of Environmental Variable - export
@@ -233,7 +328,7 @@ void printJobs() {
 }
 
 // Commands that are built in with key words
-int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
+int builtInCmds(char parsed[][BSIZE], int numberOfItems) { // takes in parsed input. Returns 0 for success, 1 for no matching command, and 2 for incorrect parameters for matching command
     int cmdType = -1; // initializes as -1 to verify if none of the commands are matches
     char* allCmds[8]; // creates an array that will store names of commands to verify which one was passed in
     
@@ -258,7 +353,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             return 1; // returns 1 to signify no matching commands
 
         case 0: // Print String - echo (In Progress)
-            echoString(parsed, numberOfItems, output); // calls echoString function
+            echoString(parsed, numberOfItems); // calls echoString function
             return 0; // returns 0 to signify success
 
         case 1: // Set Value of Environmental Variable - export
@@ -295,6 +390,7 @@ int builtInCmds(char parsed[][BSIZE], int numberOfItems, char* output) { // take
             if (kill(atoi(parsed[2]), atoi(parsed[1])) == -1) { // calls kill with PID and then signal from input after they've been converted to ints
                 return 2; // returns 2 to signify error in calling kill
             } 
+            usleep(1000); // waits to make sure the process receives the signal before the next iteration
             return 0; // returns 0 to signify success
     }
 }
@@ -322,28 +418,39 @@ int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pL
             *pLen = curWord;
             return 1; // returns 1 to show | was found
         }
+        
+        /*
+        if(input[j] == '<' && dub == 0 && single == 0) { // runs if on < and not in quotes
+            parsed[curWord][0] = '<'; // sets value to $ separate from following variable name itself
+            curWord++; // increments curWord to use the next position
+            curStart = j + 2; // resets curStart
+        }
+        
 
+         OLD VERSION OF HANDLING <
         if(input[j] == '<' && dub == 0 && single == 0) { // runs if on < and not in quotes
             strncpy(leftover, input + j + 2, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
             leftover[j - curStart + 1] = '\0';
             *pLen = curWord;
             return 2; // returns 2 to show < was found
         }
+        
 
         if(input[j] == '>' && dub == 0 && single == 0) { // runs if on < and not in quotes
             if(input[j+1] == '>') { // runs if next character is also > for >>
                 strncpy(leftover, input + j + 3, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
                 leftover[j - curStart + 1] = '\0';
                 *pLen = curWord;
-                return 4; // returns 4 to show >> was found
+                return 3; // returns 4 to show >> was found
 
             } else {
                 strncpy(leftover, input + j + 2, inLen - j + 2); // truncates the remainder after the midline modifier and stores it
                 leftover[j - curStart + 1] = '\0';
                 *pLen = curWord;
-                return 3; // returns 3 to show > was found
+                return 2; // returns 3 to show > was found
             }
         }
+        */
 
         if(input[j] == '$' && dub == 0 && single == 0)
         {
@@ -426,18 +533,22 @@ int parser(char *input, char parsed[BSIZE][BSIZE], char leftover[BSIZE], int *pL
 void parseThenPass(char* input) { // parses input and runs corresponding command/executable
     //printf("parseThenPass call\n");
     char parsed[BSIZE][BSIZE]; // creates an array that will store the tokenized input from parser function
-    char leftover[BSIZE], outputBuf[BSIZE];
+    char leftover[BSIZE];
     int numberOfItems = 0, background = 1; // creates variable to store number of parsed items and if there is an & at the end for midline modifiers
     int midline = parser(input, parsed, leftover, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
 
+    /*
+    for(int i = 0; i < numberOfItems; i++) { // prints each parsed item
+        printf("item %d: {%s}\n", i, parsed[i]);
+    }
+    */
     //printf("midline flag: %d, leftover: %s\n", midline, leftover);
 
     switch(midline) { // switch block to check if the parser needs to be called again for pipe or redirect
         case 0: ;// runs if there is no midline modifier
-            int builtIn = builtInCmds(parsed, numberOfItems, outputBuf); // calls builtInCmds and stores return to check if success, no match, or error
+            int builtIn = builtInCmds(parsed, numberOfItems); // calls builtInCmds and stores return to check if success, no match, or error
             switch(builtIn) { // switch block to check if a command was success, no match, or error
                 case 0: // runs if built in command was matched and successful
-                    printf("%s", outputBuf); // prints the outputBuf which may store the echo output or be empty
                     break; // no other actions
 
                 case 1: // runs if no built in command was matched
@@ -461,49 +572,43 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
             // wait pid if foreground but don't wait if background so that shell continues
             // need to add check if first function isn't an executable and is built in instead
             //printf("Pipe Call\n");
-            pipeExe(parsed, leftover, numberOfItems);
             int status;
             pid_t pid = fork();
             if (pid == 0) {
+                printf("PIPE HERE CALLED WITH PID: %d\n", getpid());
                 pipeExe(parsed, leftover, numberOfItems);
                 exit(0);
             } else if (pid > 0) {
                 if (background == 0) {
-                    for (int i = 0; i < MAX_JOBS; i++) { // iterates through indices of jobs array
-                        if (jobList[i].quashID == 0) { // checks if the current quashID value is 0 meaning that it is empty
+                    for (int i = (MAX_JOBS - 1); i >= 0; i--) { // iterates through indices of jobs array
+                        if (jobList[i].quashID != 0 || i == 0) { // checks if the current quashID value is 1 meaning that it is not empty, sets next value after as new job
                             char jobbuf[BSIZE]; // creates a buffer for the new job being added to the list
                             bzero(jobbuf, BSIZE); // empties the buffer
                             sprintf(jobbuf, "[%d] %d %s", i+1, pid, input); // Adds job to buffer in format [QUASH ID] PID COMMAND
                             
-                            jobList[i].quashID = i+1; // sets the quashID as the index + 1
-                            jobList[i].pid = pid; // sets the pid variable as the pid of the child
-                            strcpy(jobList[i].command, input); // adds the command to the command variable
-                            strcpy(jobList[i].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
+                            jobList[i+1].quashID = i+1; // sets the quashID as the index + 1
+                            jobList[i+1].pid = pid; // sets the pid variable as the pid of the child
+                            strcpy(jobList[i+1].command, input); // adds the command to the command variable
+                            strcpy(jobList[i+1].formatted, jobbuf); // adds the formatted text of the new job to the formatted variable
                             printf("Background job started: %s\n", jobbuf); // prints that the job started with its information
                             bzero(jobbuf, BSIZE); // empties the buffer
                             break; // ends loop because space was found in jobList
                         }
                     }
-                } else {
-                    if ((waitpid(pid, &status, 0)) == -1) {
-                        fprintf(stderr, "Process encountered error...");
-                    } // parent waits for child to finish executing
-                    if (getpid() != jobList[MAX_JOBS].pid) { // validates that only the original process remains
-                        printf("Exited pid: %d, Main pid: %d\n", getpid(), jobList[MAX_JOBS].pid);
-                        exit(0);
-                    }
-                }
+                } else if ((waitpid(pid, &status, 0)) == -1) { // parent waits for child to finish executing
+                    fprintf(stderr, "Process encountered error...");
+                } 
             }
             break;
 
-        case 2: // Input Redirection - < (Midline Modifier)
-            break;
+        //case 2: // Input Redirection - < (Midline Modifier)
+            //break;
 
-        case 3: // Output Redirection - > (Midline Modifier)
+        case 2: // Output Redirection - > (Midline Modifier)
         // fork inside here to redirect output to something else and then call backExe within that.
         // this will cause a background parent to wait for the background process but the main process with keep going if it's supposed to be ran in the background
             break;
-        case 4: // Redirect Output While Appending Output - >> (Midline Modifier)
+        case 3: // Redirect Output While Appending Output - >> (Midline Modifier)
             break;
 
     }
@@ -511,7 +616,6 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
         bzero(parsed[i], BSIZE);
     }
     bzero(leftover, BSIZE);
-    bzero(outputBuf, BSIZE);
 }
 
 // Comments - # (Midline Modifier)
