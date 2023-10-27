@@ -161,76 +161,83 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
 }
 
 void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if parsing everything then check last index to see if it has & to run background
-    printf("ENTERED HANDLEPIPES\n");
-    char outputBuffer[BSIZE], currentItem[BSIZE]; // will store word of current iteration
-    int nextStart = 0, curPipe = 0, i = 0, curIndex = 0, nextIsVar = 0, nextIsOutFile = 0, status, pipeArray[numPipes + 1][2]; // holds current index of exePtr, flag to check if next item is $, status of child
+    //printf("ENTERED HANDLEPIPES\n");
+    char currentItem[BSIZE]; // will store word of current iteration
+    int nextStart = 0, curPipe = 0, i = 0, curIndex = 0, nextIsVar = 0, nextIsOutFile = 0, status, pipeArray[numPipes][2]; // holds current index of exePtr, flag to check if next item is $, status of child
+    char testBuf[BSIZE];    
 
-    for (int j = 0; i < numPipes + 1; j++) {
-        pipe(pipeArray[i]); // initializes the pipes
-        printf("init pipe %i\n", i);
+    for (int j = 0; j < numPipes; j++) {
+        pipe(pipeArray[j]); // initializes the pipes
+        //printf("init pipe %i\n", j);
     }
 
     for (int j = 0; j < numPipes + 1; j++) {
+        bzero(testBuf, BSIZE);
         char *exePtr[BSIZE];  // array of pointers to strings
         curIndex = 0;
         for (i; i < numberOfItems; i++) {
-            printf("iteration %i\n", i);
+            //printf("iteration %i\n", i);
             bzero(currentItem, BSIZE);
 
             if (exe[i][0] == '|') { // checks if pipe
-                printf("found pipe/n");
+                //printf("found pipe\n");
                 i++; // increases i for next loop starting location
                 break; // breaks
 
             } else if (exe[i][0] == '$') { // checks if environmental variable
-                printf("found environmental var/n");
+                //printf("found environmental var\n");
                 nextIsVar = 1; // marks flag
 
 
             } else if (exe[i][0] == '<') { // runs if input symbol
-                printf("found input symbol/n");
+                //printf("found input symbol\n");
                 continue; // continues to not add it to the array
 
             } else if (strcmp(exe[i], ">>") == 0) { // checks if append output cae is next
-                printf("found append symbol/n");
+                //printf("found append symbol\n");
                 nextIsOutFile = 2; // marks flag for next iteration
                 break;
 
             } else if (exe[i][0] == '>') { // checks if output case is next
-                printf("found output symbol/n");
+                //printf("found output symbol\n");
                 nextIsOutFile = 1; // marks flag for next iteration
                 break;
             
             } else if (exe[i][0] == '&') {
-                printf("found a background process/n");
+                //printf("found a background process\n");
                 break;
 
             } else if (nextIsVar == 1) { // runs if next item is variable
-                printf("adds environmental variable %s to output/n", getenv(exe[i]));
+                //printf("adds environmental variable %s to output\n", getenv(exe[i]));
                 sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
                 exePtr[curIndex] = currentItem; // stores the converted environmental variable
                 curIndex++; // increments curIndex
                 nextIsVar = 0; // resets flag
 
             } else { // runs if next item is just text
-                printf("Setting index %i of exePtr to %s/n", curIndex, exe[i]);
+                //printf("Setting index %i of exePtr to %s\n", curIndex, exe[i]);
                 exePtr[curIndex] = exe[i]; // sets the next index of exePtr to the i index of exe
                 curIndex++; // increments curIndex
             }
         }
 
             exePtr[curIndex] = NULL; // sets null to show end of args
-            for (int tester = 0; tester < numberOfItems; tester++) {
-                printf("item in exePtr: {%s}\n", exePtr[tester]);
+            
+            /*
+            for (int tester = 0; tester < curIndex + 1; tester++) {
+                printf("item %d in exePtr: {%s}\n", tester, exePtr[tester]);
             }
+            */            
+            
             pid_t p = fork(); // calls fork on pid p
 
             if (p == 0) { // child process
             // array of pipes, read from previous index and then write to the next one to pass between the loop
             // parent is gonna wait until child is done but no behavior happens in parent and it waits till next loop
-                printf("\nin child process:\n");
+                //printf("\nin child process:\n");
                 if (j == 0) {
-                    for (int k = 1; k < numPipes + 1; k++) {
+                    for (int k = 1; k < numPipes; k++) {
+                        //printf("closing pipe in child for first process: %d\n", k);
                         close(pipeArray[k][0]);
                         close(pipeArray[k][1]);
                     }
@@ -238,10 +245,24 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                     dup2(pipeArray[0][1], 1); // sets write end to std out
                     close(pipeArray[0][0]); // closes write end
 
-                } else {
-                    printf("\nIn parent process:\n")
+                } else if (j == numPipes) { // runs if the last process to only read
+                    //printf("LAST EXE\n");
+                    for (int k = 0; k < numPipes; k++) {
+                        if (k != j && k != j - 1) {
+                            //printf("closing pipe in child: %d\n", k);
+                            close(pipeArray[k][0]);
+                            close(pipeArray[k][1]);
+                        }//printf("closing pipe in child for first process: %d\n", k);
+                    }
+                    close(pipeArray[numPipes - 1][1]); // closes read end of pipe
+                    dup2(pipeArray[numPipes - 1][0], 0); // sets write end to std out
+                    close(pipeArray[numPipes - 1][0]); // closes write end
+                }
+                
+                else {
                     for (int k = 0; k < numPipes + 1; k++) {
                         if (k != j && k != j - 1) {
+                            //printf("closing pipe in child: %d\n", k);
                             close(pipeArray[k][0]);
                             close(pipeArray[k][1]);
                         }
@@ -249,6 +270,8 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                     close(pipeArray[j - 1][1]); // closes previous pipe write
                     close(pipeArray[j][0]); // closes current pipe read
 
+                    //read(pipeArray[j-1][0], testBuf, BSIZE);
+                    //printf("PIPE VAL: %s\n", testBuf);
                     dup2(pipeArray[j - 1][0], 0); // reads from previous pipe
                     dup2(pipeArray[j][1], 1); // sets write to std out
 
@@ -276,11 +299,13 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
             printf("Fork failed...\n");
         }
         
+        //printf("\nIn parent process:\n");
         if ((waitpid(p, &status, 0)) == -1) {
                 fprintf(stderr, "Process encountered error...\n");
             }
+        //printf("parent finished waiting\n");
     }
-
+    /*
     if (nextIsOutFile == 1) { // runs if > was found
         FILE *outputFile;
         outputFile = freopen(exe[i+1], "w", stdout); // exe[i+1] is the name of the output file and opens in write mode
@@ -288,14 +313,27 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
         FILE *outputFile;
         outputFile = freopen(exe[i+1], "a", stdout); // exe[i+1] is the name of the output file and opens in append mode
     }
-
+    
+    //printf("before reading pipes outside of for loop\n");
     for (int k = 0; k < numPipes; k++) {
         close(pipeArray[k][0]);
         close(pipeArray[k][1]);
     }
     close(pipeArray[numPipes][1]);
+    read(pipeArray[numPipes][0], testBuf, BSIZE);
+    for(int character = 0; character < BSIZE; character++) {
+        if (testBuf[character] == NULL) {
+            break;
+        }
+        printf("%c", testBuf[character]);
+    }
+    //printf("PIPE VAL: %s\n", testBuf);
     dup2(pipeArray[numPipes][0], 0);
+    close(pipeArray[numPipes][0]);
+    bzero(testBuf, BSIZE);
+    //printf("after pipe read\n");
     exit(0);
+    */
 }
 
 /*
@@ -370,10 +408,91 @@ void pipeExe(char exe[][BSIZE], char* leftover, int numberOfItems) {
 */
 
 // Print String - echo (In Progress)
+int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to print (needs to remove "echo" work from start of string)
+    char output[BSIZE], c; // will store word of current iteration
+    int nextIsVar = 0, nextIsInFile = 0, nextIsOutFile = 0, outputRedirect; // flag to check if value following $ is environmental variable
+    bzero(output, BSIZE); // empties the buffer
+    FILE* outputFile;
+    
+    for (outputRedirect = 0; outputRedirect < numberOfItems; outputRedirect++) { // iterates through parsed to find output redirect
+        if (strcmp(parsed[outputRedirect], ">>") == 0) { // checks if append output cae is next
+            nextIsOutFile = 2; // marks flag for next iteration
+            break;
+
+        } else if (parsed[outputRedirect][0] == '>') { // checks if output case is next
+            nextIsOutFile = 1; // marks flag for next iteration
+            break;
+        }
+    }
+
+    if (nextIsOutFile == 1) { // runs if > was found
+        outputFile = fopen(parsed[outputRedirect + 1], "w"); // opens file in write mode
+
+    } else if (nextIsOutFile == 2) { // runs if >> was found
+        outputFile = fopen(parsed[outputRedirect + 1], "a"); // opens file in write mode
+    }
+            
+    for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
+        if (parsed[i][0] == '$') { // checks if environmental variable
+            nextIsVar = 1; // marks flag for next iteration
+
+        } else if (strcmp(parsed[i], ">>") == 0) { // checks if append output cae is next
+            break;
+
+        } else if (parsed[i][0] == '>') { // checks if output case is next
+            break;
+            
+        } else if (parsed[i][0] == '<') { // checks if input case is next
+            nextIsInFile = 1; // marks flag for next iteration
+
+        } else if (nextIsVar == 1) { // runs if item is variable
+            if (nextIsOutFile > 0) {
+                fprintf(outputFile, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
+            } else {
+                printf("%s", getenv(parsed[i])); // gets environmental variable value and adds to output
+            }
+            nextIsVar = 0; // resets flag
+
+        } else if (nextIsInFile == 1) { // runs if item is file
+            FILE *inputFile; // creates file type
+            inputFile = fopen(parsed[i], "r"); // opens file in read mode
+            if (nextIsOutFile > 0) {
+                c = fgetc(inputFile); 
+                while (c != EOF) 
+                { 
+                    fputc(c, outputFile); 
+                    c = fgetc(inputFile); 
+                } 
+            } else {
+                fgets(output, BSIZE, inputFile); // reads from the file and stores it in the buffer
+                printf("%s", output);   
+            }
+
+            fclose(inputFile); // closes the file
+            break; 
+
+        } else { // runs if next item is just text
+            if (nextIsOutFile > 0) {
+                fprintf(outputFile, "%s", parsed[i]); // gets environmental variable value and adds to output
+            } else {
+                printf("%s", parsed[i]); // gets environmental variable value and adds to output
+            }
+        }
+    }
+
+    if (nextIsOutFile == 0) { // runs if the it didn't output to a file
+        printf("%s\n", output); // prints the output
+    }
+    if (nextIsOutFile > 0) {
+        fclose(outputFile);
+    }
+    bzero(output, BSIZE); // empties the buffer
+}
+/*
 void echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to print (needs to remove "echo" work from start of string)
-    char currentItem[BSIZE];//, output[BSIZE]; // will store word of current iteration
-    int nextIsVar = 0, nextIsInFile = 0;//, nextIsOutFile = 0; // flag to check if value following $ is environmental variable
-    //bzero(output, BSIZE); // empties the buffer
+    char currentItem[BSIZE], output[BSIZE]; // will store word of current iteration
+    int nextIsVar = 0, nextIsInFile = 0, nextIsOutFile = 0; // flag to check if value following $ is environmental variable
+    bzero(output, BSIZE); // empties the buffer
 
     for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
         bzero(currentItem, BSIZE); // empties the buffer
@@ -381,34 +500,35 @@ void echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to
             nextIsVar = 1; // marks flag for next iteration
 
         } else if (strcmp(parsed[i], ">>") == 0) { // checks if append output cae is next
-            //nextIsOutFile = 2; // marks flag for next iteration
+            nextIsOutFile = 2; // marks flag for next iteration
             break;
 
         } else if (parsed[i][0] == '>') { // checks if output case is next
-            //nextIsOutFile = 1; // marks flag for next iteration
+            nextIsOutFile = 1; // marks flag for next iteration
             break;
 
         } else if (parsed[i][0] == '<') { // checks if input case is next
             nextIsInFile = 1; // marks flag for next iteration
 
         } else if (nextIsVar == 1) { // runs if item is variable
-            //sprintf(currentItem, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
-            //strcat(output, currentItem); // concatenates the current item to the output
-            printf("%s", getenv(parsed[i])); // gets environmental variable value and prints
+            sprintf(currentItem, "%s", getenv(parsed[i])); // gets environmental variable value and adds to output
+            strcat(output, currentItem); // concatenates the current item to the output
+            //printf("%s", getenv(parsed[i])); // gets environmental variable value and prints
             nextIsVar = 0; // resets flag
 
         } else if (nextIsInFile == 1) { // runs if item is file
             FILE *inputFile; // creates file type
             inputFile = fopen(parsed[i], "r"); // opens file in read mode
             fgets(currentItem, BSIZE, inputFile); // reads from the file and stores it in the buffer
-            //strcat(output, currentItem); // concatenates the current item to the output
-            printf("%s", currentItem); // prints file
+            strcat(output, currentItem); // concatenates the current item to the output
+            //printf("%s", currentItem); // prints file
             fclose(inputFile); // closes the file
             break; 
 
-        /*
+        
         } else if (nextIsOutFile == 1) { // runs if item is file
-            //strcat(output, "\n"); // adds new line to output
+            printf("redirect output >\n");
+            strcat(output, "\n"); // adds new line to output
             FILE *outputFile; // creates file type
             outputFile = fopen(parsed[i], "w"); // opens file in write mode
             fprintf(outputFile, output); // writes the output to the file
@@ -416,32 +536,33 @@ void echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to
             break;
 
         } else if (nextIsOutFile == 2) { // runs if item is file
-            //strcat(output, "\n"); // adds new line to output
+            printf("redirect output >>\n");
+            strcat(output, "\n"); // adds new line to output
             sprintf(currentItem, "\n%s", output); // adds new line to the output and stores it in current item
             FILE *outputFile; // creates file type
             outputFile = fopen(parsed[i], "a"); // opens file in append mode
             fprintf(outputFile, currentItem); // writes the output to the file
             fclose(outputFile); // closes the file
             break;
-        */
+        
 
         } else { // runs if next item is just text
-            //sprintf(currentItem, "%s ", parsed[i]); // adds to output
-            //strcat(output, currentItem); // concatenates the current item to the output
-            printf("%s ", parsed[i]); // print the current item
+            sprintf(currentItem, "%s ", parsed[i]); // adds to output
+            strcat(output, currentItem); // concatenates the current item to the output
+            //printf("%s ", parsed[i]); // print the current item
         }
     }
 
-    printf("\n"); // prints new line
-    /*
+    //printf("\n"); // prints new line
+    
     if (nextIsOutFile == 0) { // runs if the it didn't output to a file
         printf("%s\n", output); // prints the output
     }
     
     bzero(currentItem, BSIZE); // empties the buffer
     bzero(output, BSIZE); // empties the buffer
-    */
 }
+*/
 
 // Set Value of Environmental Variable - export
 int export(char parsed[][BSIZE], int numberOfItems) {
@@ -554,20 +675,20 @@ int parser(char *input, char parsed[BSIZE][BSIZE], int *numPipes, int *pLen)  //
     if(inLen == 0) //check if the input is empty
     { return 5; }
     
-    int single = 0, dub = 0, count = 0, environs = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
+    int single = 0, dub = 0, count = 0, environs = 0, postQuote = 0; //single to check for '', dub to check for "", count to see if there is already a " or ' in the command
     
     for (int j = 0; j < inLen; j++) //Loop thru entire input
     { 
-        if(input[j] == ' ' && dub == 0 && single == 0) { // checks if current character is space and isn't in quotes
+        if(input[j] == ' ' && dub == 0 && single == 0 && postQuote == 0) { // checks if current character is space and isn't in quotes
             strncpy(parsed[curWord], input + curStart, j - curStart); // truncates the current word and stores it
             curStart = j + 1; // resets the start value for the next word
             curWord++; // increments the next available word position
         }
 
         if(input[j] == '|' && dub == 0 && single == 0) { // runs if on | and not in quotes
-            printf("found | symbol\n");
+            //printf("found | symbol\n");
             pipeCount++; // increments the number of pipes
-            printf("pipeCount: %d\n", pipeCount);
+            //printf("pipeCount: %d\n", pipeCount);
         }
         
         /*
@@ -629,10 +750,12 @@ int parser(char *input, char parsed[BSIZE][BSIZE], int *numPipes, int *pLen)  //
             else // ending quote
             { 
                 strncpy(parsed[curWord], input + curStart + 1, j - curStart - 1); // adds extra 1 to start to remove quote characters
-                curStart = j + 1; // resets the start value for the next word
+                curStart = j + 2; // resets the start value for the next word
                 curWord++; // increments the next available word position
-                single = 0; 
+                single = 0;
+                postQuote = 1; 
                 count--;
+                continue;
             }
         }
         
@@ -646,10 +769,12 @@ int parser(char *input, char parsed[BSIZE][BSIZE], int *numPipes, int *pLen)  //
             else // ending quote
             { 
                 strncpy(parsed[curWord], input + curStart + 1, j - curStart - 1); // adds extra 1 to start to remove quote characters
-                curStart = j + 1; // resets the start value for the next word
+                curStart = j + 2; // resets the start value for the next word            
                 curWord++; // increments the next available word position
                 dub = 0; 
+                postQuote = 1;
                 count--;
+                continue;
             } 
         }
         
@@ -674,9 +799,15 @@ int parser(char *input, char parsed[BSIZE][BSIZE], int *numPipes, int *pLen)  //
                 curWord++; // increments the next available word position 
             }
         }
+
+        if (postQuote == 1) {
+            postQuote = 0;
+        }
     }
-    strncpy(parsed[curWord], input + curStart, inLen - curStart); // truncates the current word and stores it
-    curWord++;
+    if (postQuote == 0) { // runs if the last character wasn't a closing quote
+        strncpy(parsed[curWord], input + curStart, inLen - curStart); // truncates the current word and stores it
+        curWord++;
+    }
     *pLen = curWord; // sets number of items as current word number
     *numPipes = pipeCount;
     return 0; // returns 0 to signify no midline modifiers
@@ -690,15 +821,18 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     int pipes = parser(input, parsed, &numPipes, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
     FILE *outputFile; // creates outputFile
 
-    
+    /*
     for(int i = 0; i < numberOfItems; i++) { // prints each parsed item
         printf("item %d: {%s}\n", i, parsed[i]);
     }
     printf("number of items: %d, number of pipes: %d\n", numberOfItems, numPipes);
+    */
+    
     
     //printf("midline flag: %d, leftover: %s\n", midline, leftover);
 
     if (numPipes == 0) { // runs if no pipes
+            /*
             for (outputRedirect = 0; outputRedirect < numberOfItems; outputRedirect++) { // iterates through parsed to find output redirect
                 if (strcmp(parsed[outputRedirect], ">>") == 0) { // checks if append output cae is next
                     nextIsOutFile = 2; // marks flag for next iteration
@@ -731,9 +865,11 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                     return;
                 }
             }
+            */
 
             int builtIn = builtInCmds(parsed, numberOfItems); // calls builtInCmds and stores return to check if success, no match, or error
             
+            /*
             printf("exited builtIn\n");
             if (nextIsOutFile > 0) { // checks if output was redirected
                 printf("in if statement before close\n");
@@ -749,7 +885,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                 }
                 printf("after close\n");
             }
-
+            */
             switch(builtIn) { // switch block to check if a command was success, no match, or error
                 case 0: // runs if built in command was matched and successful
                     break; // no other actions
@@ -780,7 +916,44 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
         int status;
         pid_t pid = fork();
         if (pid == 0) {
-            printf("PIPE HERE CALLED WITH PID: %d\n", getpid());
+            //printf("PIPE HERE CALLED WITH PID: %d\n", getpid());
+
+            int outputRedirect;
+            FILE* outputFile;
+            
+            for (outputRedirect = 0; outputRedirect < numberOfItems; outputRedirect++) { // iterates through parsed to find output redirect
+                if (strcmp(parsed[outputRedirect], ">>") == 0) { // checks if append output cae is next
+                    nextIsOutFile = 2; // marks flag for next iteration
+                    break;
+
+                } else if (parsed[outputRedirect][0] == '>') { // checks if output case is next
+                    nextIsOutFile = 1; // marks flag for next iteration
+                    break;
+                }
+            }
+
+            if (nextIsOutFile == 1) { // runs if > was found
+                //printf("found >\n");
+                outputFile = freopen(parsed[outputRedirect+1], "w", stdout); // opens file name from parsed[outputRedirect+1] in write mode
+                if (outputFile == NULL) { // runs if error opening file
+                    printf("Error opening output file...\n");
+                    for(int i = 0; i < BSIZE; i++) {
+                        bzero(parsed[i], BSIZE);
+                    }
+                    return;
+                }
+            } else if (nextIsOutFile == 2) { // runs if >> was found
+                //printf("found >>\n");
+                outputFile = freopen(parsed[outputRedirect+1], "a", stdout); // opens file name from parsed[outputRedirect+1] in append mode
+                if (outputFile == NULL) { // runs if error opening file
+                    //printf("Error opening output file...\n");
+                    for(int i = 0; i < BSIZE; i++) {
+                        bzero(parsed[i], BSIZE);
+                    }
+                    return;
+                }
+            }
+
             handlePipes(parsed, numberOfItems, numPipes);
             exit(0);
 
@@ -838,10 +1011,8 @@ int main() {
         newJob.quashID = 0;
         jobList[i] = newJob; // sets all jobs to quashID of 0 to indicate it's clear
     }
-    jobList[MAX_JOBS].quashID = -1;
-    jobList[MAX_JOBS].pid = getpid();
     char input[BSIZE]; // creates a character buffer to store input from the user
-    printf("PID: %d\n", getpid());
+    //printf("PID: %d\n", getpid());
     printf("Welcome...\n");
     while(1) {
         int status; // creates status int for waitpid
