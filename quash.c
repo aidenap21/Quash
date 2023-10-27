@@ -270,9 +270,9 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                             close(pipeArray[k][1]);
                         }//printf("closing pipe in child for first process: %d\n", k);
                     }
-                    close(pipeArray[numPipes - 1][1]); // closes read end of pipe
-                    dup2(pipeArray[numPipes - 1][0], 0); // sets write end to std out
-                    close(pipeArray[numPipes - 1][0]); // closes write end
+                    close(pipeArray[numPipes - 1][1]); // closes write end of pipe
+                    dup2(pipeArray[numPipes - 1][0], 0); // sets read end to std in
+                    close(pipeArray[numPipes - 1][0]); // closes read end
                 }
                 
                 else {
@@ -510,9 +510,10 @@ int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to 
     }
 
     if (nextIsOutFile == 0) { // runs if the it didn't output to a file
-        printf("%s\n", output); // prints the output
+        printf("\n"); // prints the output
     }
     if (nextIsOutFile > 0) {
+        fprintf(outputFile, "\n"); // prints the output
         fclose(outputFile);
     }
     bzero(output, BSIZE); // empties the buffer
@@ -761,7 +762,7 @@ int parser(char *input, char parsed[BSIZE][BSIZE], int *numPipes, int *pLen)  //
             environs = 1; // sets environs to 1 as flag to stop when / is found
         }
         
-        if(input[j] == '/' && dub == 0 && single == 0)
+        if(input[j] == '/' && dub == 0 && single == 0 && environs == 1)
         {
             strncpy(parsed[curWord], input + curStart, j - curStart); // truncates the current word and stores it
             curStart = j; // resets the start value for the next word but uses / as start instead of next character
@@ -850,12 +851,12 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
     int pipes = parser(input, parsed, &numPipes, &numberOfItems); // calls parser and stores the return value to check if pipes or redirection exist in the input
     FILE *outputFile; // creates outputFile
 
-    /*
+    
     for(int i = 0; i < numberOfItems; i++) { // prints each parsed item
         printf("item %d: {%s}\n", i, parsed[i]);
     }
     printf("number of items: %d, number of pipes: %d\n", numberOfItems, numPipes);
-    */
+    
     
     
     //printf("midline flag: %d, leftover: %s\n", midline, leftover);
