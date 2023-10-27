@@ -167,42 +167,53 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
 
     for (int j = 0; i < numPipes + 1; j++) {
         pipe(pipeArray[i]); // initializes the pipes
+        printf("init pipe %i\n", i);
     }
 
     for (int j = 0; j < numPipes + 1; j++) {
         char *exePtr[BSIZE];  // array of pointers to strings
         curIndex = 0;
         for (i; i < numberOfItems; i++) {
+            printf("iteration %i\n", i);
             bzero(currentItem, BSIZE);
 
             if (exe[i][0] == '|') { // checks if pipe
+                printf("found pipe/n");
                 i++; // increases i for next loop starting location
                 break; // breaks
 
             } else if (exe[i][0] == '$') { // checks if environmental variable
+                printf("found environmental var/n");
                 nextIsVar = 1; // marks flag
 
+
             } else if (exe[i][0] == '<') { // runs if input symbol
+                printf("found input symbol/n");
                 continue; // continues to not add it to the array
 
             } else if (strcmp(exe[i], ">>") == 0) { // checks if append output cae is next
+                printf("found append symbol/n");
                 nextIsOutFile = 2; // marks flag for next iteration
                 break;
 
             } else if (exe[i][0] == '>') { // checks if output case is next
+                printf("found output symbol/n");
                 nextIsOutFile = 1; // marks flag for next iteration
                 break;
             
             } else if (exe[i][0] == '&') {
+                printf("found a background process/n");
                 break;
 
             } else if (nextIsVar == 1) { // runs if next item is variable
+                printf("adds environmental variable %s to output/n", getenv(exe[i]));
                 sprintf(currentItem, "%s", getenv(exe[i])); // gets environmental variable value and adds to output
                 exePtr[curIndex] = currentItem; // stores the converted environmental variable
                 curIndex++; // increments curIndex
                 nextIsVar = 0; // resets flag
 
             } else { // runs if next item is just text
+                printf("Setting index %i of exePtr to %s/n", curIndex, exe[i]);
                 exePtr[curIndex] = exe[i]; // sets the next index of exePtr to the i index of exe
                 curIndex++; // increments curIndex
             }
@@ -217,6 +228,7 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
             if (p == 0) { // child process
             // array of pipes, read from previous index and then write to the next one to pass between the loop
             // parent is gonna wait until child is done but no behavior happens in parent and it waits till next loop
+                printf("\nin child process:\n");
                 if (j == 0) {
                     for (int k = 1; k < numPipes + 1; k++) {
                         close(pipeArray[k][0]);
@@ -227,6 +239,7 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                     close(pipeArray[0][0]); // closes write end
 
                 } else {
+                    printf("\nIn parent process:\n")
                     for (int k = 0; k < numPipes + 1; k++) {
                         if (k != j && k != j - 1) {
                             close(pipeArray[k][0]);
