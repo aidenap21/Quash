@@ -8,4 +8,4 @@ quash: quashCompile
 	./quash
 
 clean:
-	rm -f dp quash
+	rm -f quash
