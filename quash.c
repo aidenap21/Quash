@@ -59,9 +59,17 @@ int forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name a
         if (nextIsOutFile == 1) { // runs if > was found
             FILE *outputFile;
             outputFile = freopen(exe[i+1], "w", stdout); // exe[i+1] is the name of the output file and opens in write mode
+            if (outputFile == NULL) {
+                printf("Error opening file...\n");
+                return 1;
+            }
         } else if (nextIsOutFile == 2) { // runs if >> was found
             FILE *outputFile;
             outputFile = freopen(exe[i+1], "a", stdout); // exe[i+1] is the name of the output file and opens in append mode
+            if (outputFile == NULL) {
+                printf("Error opening file...\n");
+                return 1;
+            }
         }
         //printf("CHILD PID IN FOREXE: %d\n", getpid());
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
@@ -126,9 +134,17 @@ int backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in 
         if (nextIsOutFile == 1) {
             FILE *outputFile;
             outputFile = freopen(exe[i+1], "w", stdout);
+            if (outputFile == NULL) {
+                printf("Error opening file...\n");
+                return 1;
+            }
         } else if (nextIsOutFile == 2) {
             FILE *outputFile;
             outputFile = freopen(exe[i+1], "a", stdout);
+            if (outputFile == NULL) {
+                printf("Error opening file...\n");
+                return 1;
+            }
         }
 
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
@@ -427,9 +443,17 @@ int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to 
 
     if (nextIsOutFile == 1) { // runs if > was found
         outputFile = fopen(parsed[outputRedirect + 1], "w"); // opens file in write mode
+        if (outputFile == NULL) {
+            printf("Error opening output file...\n");
+            return 1;
+        }
 
     } else if (nextIsOutFile == 2) { // runs if >> was found
         outputFile = fopen(parsed[outputRedirect + 1], "a"); // opens file in write mode
+        if (outputFile == NULL) {
+            printf("Error opening output file...\n");
+            return 1;
+        }
     }
             
     for (int i = 1; i < numberOfItems; i++) { // iterates through parsed starting at index 1 to not print out the echo command word
@@ -456,6 +480,11 @@ int echoString(char parsed[][BSIZE], int numberOfItems) { // takes in string to 
         } else if (nextIsInFile == 1) { // runs if item is file
             FILE *inputFile; // creates file type
             inputFile = fopen(parsed[i], "r"); // opens file in read mode
+            if (inputFile == NULL) {
+                printf("Error opening input file...\n");
+                return 1;
+            }
+
             if (nextIsOutFile > 0) {
                 c = fgetc(inputFile); 
                 while (c != EOF) 
@@ -907,6 +936,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                 bzero(parsed[i], BSIZE);
             }
             return;
+
     } else if (numPipes > 0) { // Pipes - | (Midline Modifier)
             // both foreground and background use the same function
             // fork outside of function call before using
@@ -946,7 +976,7 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
                 //printf("found >>\n");
                 outputFile = freopen(parsed[outputRedirect+1], "a", stdout); // opens file name from parsed[outputRedirect+1] in append mode
                 if (outputFile == NULL) { // runs if error opening file
-                    //printf("Error opening output file...\n");
+                    printf("Error opening output file...\n");
                     for(int i = 0; i < BSIZE; i++) {
                         bzero(parsed[i], BSIZE);
                     }
