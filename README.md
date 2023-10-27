@@ -3,13 +3,10 @@ Quite a Shell (quash) program using the UNIX system calls
 https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.html
 
 # To-Do List
-- Pipes - |
-- Background Pipes - &
-- parseThenPass Set Up
 
 # Bonus
-- Pipes and Redirects Can Be Mixed
-- Pipes and Redirects Work with Built-In Commands (make stdout redirect for built in)
+- Pipes and Redirects Can Be Mixed (DONE)
+- Pipes and Redirects Work with Built-In Commands (make stdout redirect for built in) (REDIRECT NOT PIPE)
 
 # Completed
 - Change Working Directory - cd
@@ -27,3 +24,6 @@ https://zarrar1607.github.io/KUEECS678-Fall2023/projects/quash/doc/html/index.ht
 - Input Redirection - <
 - Output Redirection - >
 - Redirect Output While Appending Output - >>
+- Pipes - |
+- Background Pipes - &
+- parseThenPass Set Up
