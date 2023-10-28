@@ -61,20 +61,20 @@ void forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name 
             outputFile = freopen(exe[i+1], "w", stdout); // exe[i+1] is the name of the output file and opens in write mode
             if (outputFile == NULL) {
                 printf("Error opening file...\n");
-                exit(0);
+                exit(1);
             }
         } else if (nextIsOutFile == 2) { // runs if >> was found
             FILE *outputFile;
             outputFile = freopen(exe[i+1], "a", stdout); // exe[i+1] is the name of the output file and opens in append mode
             if (outputFile == NULL) {
                 printf("Error opening file...\n");
-                exit(0);
+                exit(1);
             }
         }
         //printf("CHILD PID IN FOREXE: %d\n", getpid());
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
             printf("Error executing...\n"); // prints statement that exec fails
-            exit(0); // exits child process since it failed
+            exit(1); // exits child process since it failed
         }
 
     } else if (p < 0) { // parent process
@@ -132,20 +132,20 @@ void backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in
             outputFile = freopen(exe[i+1], "w", stdout);
             if (outputFile == NULL) {
                 printf("Error opening file...\n");
-                exit(0);
+                exit(1);
             }
         } else if (nextIsOutFile == 2) {
             FILE *outputFile;
             outputFile = freopen(exe[i+1], "a", stdout);
             if (outputFile == NULL) {
                 printf("Error opening file...\n");
-                exit(0);
+                exit(1);
             }
         }
 
         if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing background process...\n"); // prints statement that exec fails
-            exit(0); // exits child process since it failed 
+            exit(1); // exits child process since it failed 
         }
 
     } else if (p > 0) { // parent process
@@ -180,7 +180,9 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
     char testBuf[BSIZE];    
 
     for (int j = 0; j < numPipes; j++) {
-        pipe(pipeArray[j]); // initializes the pipes
+        if (pipe(pipeArray[j]) == -1) { // initializes the pipes
+            printf("Pipe failed...\n");
+        }
     }
 
     for (int j = 0; j < numPipes + 1; j++) {
@@ -244,34 +246,32 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                 char pipeTest[BSIZE];
                 bzero(pipeTest, BSIZE);
 
-                if (j == 0) {
-                    for (int k = 1; k < numPipes; k++) {
+                if (j == 0) { // first process only writes to pipe
+                    for (int k = 1; k < numPipes; k++) { // closes all but the first pipe
                         close(pipeArray[k][0]);
                         close(pipeArray[k][1]);
                     }
                     close(pipeArray[0][0]); // closes read end of pipe
-                    dup2(pipeArray[0][1], 1); // sets write end to std out
-                    //close(pipeArray[0][1]); // closes write end
 
-                } else if (j == numPipes) { // runs if the last process to only read
-                    for (int k = 0; k < numPipes; k++) {
-                        if (k != j - 1) {
-                            close(pipeArray[k][0]);
-                            close(pipeArray[k][1]);
-                        }
+                    dup2(pipeArray[0][1], 1); // sets write end to std out
+
+                    close(pipeArray[0][1]); // closes write end
+
+                } else if (j == numPipes) { // last process only reads from pipe
+                    for (int k = 0; k < numPipes - 1; k++) { // closes all but the last pipe
+                        close(pipeArray[k][0]);
+                        close(pipeArray[k][1]);
                     }
                     close(pipeArray[numPipes - 1][1]); // closes write end of pipe
-                    //read(pipeArray[numPipes - 1][0], pipeTest, BSIZE);
-                    //printf("%s\n", pipeTest);
+
                     dup2(pipeArray[numPipes - 1][0], 0); // sets read end to std in
-                    //close(pipeArray[numPipes - 1][0]); // closes read end
+
+                    close(pipeArray[numPipes - 1][0]); // closes read end
                 }
                 
                 else {
-                    printf("%d process\n", j);
-                    for (int k = 0; k < numPipes + 1; k++) {
+                    for (int k = 0; k < numPipes; k++) { // closes all but current and previous pipes
                         if (k != j && k != j - 1) {
-                            //printf("closing pipe in child: %d\n", k);
                             close(pipeArray[k][0]);
                             close(pipeArray[k][1]);
                         }
@@ -279,21 +279,16 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                     close(pipeArray[j - 1][1]); // closes previous pipe write
                     close(pipeArray[j][0]); // closes current pipe read
 
-                    //read(pipeArray[j-1][0], testBuf, BSIZE);
-                    //printf("PIPE VAL: %s\n", testBuf);
-                    //read(pipeArray[numPipes - 1][0], pipeTest, BSIZE);
-                    //printf("%s\n", pipeTest);
                     dup2(pipeArray[j - 1][0], 0); // reads from previous pipe
                     dup2(pipeArray[j][1], 1); // sets write to std out
 
-                    //close(pipeArray[j - 1][0]);
-                    //close(pipeArray[j][1]);
+                    close(pipeArray[j - 1][0]);
+                    close(pipeArray[j][1]);
                 }
 
-                //printf("CHILD PID IN FOREXE: %d\n", getpid());
                 if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
                     printf("Error executing...\n"); // prints statement that exec fails
-                    exit(0); // exits child process since it failed
+                    exit(1); // exits child process since it failed
                 }
 
         } else if (pidArray[j] < 0) { // parent process
@@ -313,7 +308,7 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
 
     if ((waitpid(pidArray[numPipes], &status, 0)) == -1) { // only waits the last process since the rest of the processes will have to wait based on pipe read anyway
             fprintf(stderr, "Process encountered error...\n");
-        }
+    }
 }
 
 // Print String - echo (In Progress)
