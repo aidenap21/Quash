@@ -72,7 +72,7 @@ void forExe(char exe[][BSIZE], int numberOfItems) { // takes in executable name 
             }
         }
         //printf("CHILD PID IN FOREXE: %d\n", getpid());
-        if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
+        if (execvp(exePtr[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
             printf("Error executing...\n"); // prints statement that exec fails
             exit(1); // exits child process since it failed
         }
@@ -143,7 +143,7 @@ void backExe(char exe[][BSIZE], char* unparsed, int numberOfItems) { // takes in
             }
         }
 
-        if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
+        if (execvp(exePtr[0], exePtr) < 0) { // calls execvp on passed in executable with parameters but catches error if exec fails
             printf("Error executing background process...\n"); // prints statement that exec fails
             exit(1); // exits child process since it failed 
         }
@@ -177,8 +177,6 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
     int nextStart = 0, curPipe = 0, i = 0, curIndex = 0, nextIsVar = 0, nextIsOutFile = 0, status, pipeArray[numPipes][2]; // holds current index of exePtr, flag to check if next item is $, status of child
     pid_t pidArray[numPipes + 1]; // array of pipes, read from previous index and then write to the next one to pass between the loop
 
-    char testBuf[BSIZE];    
-
     for (int j = 0; j < numPipes; j++) {
         if (pipe(pipeArray[j]) == -1) { // initializes the pipes
             printf("Pipe failed...\n");
@@ -186,11 +184,10 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
     }
 
     for (int j = 0; j < numPipes + 1; j++) {
-        bzero(testBuf, BSIZE);
         char *exePtr[BSIZE];  // array of pointers to strings
 
         for (int k = 0; k < BSIZE; k++) {
-            exePtr[i] = NULL;
+            exePtr[k] = NULL;
         }
 
         curIndex = 0;
@@ -232,13 +229,7 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
             }
         }
 
-            exePtr[curIndex] = NULL; // sets null to show end of args
-            
-            
-            for (int tester = 0; exePtr[tester] != NULL; tester++) {
-                printf("item %d in exePtr: {%s}\n", tester, exePtr[tester]);
-            }
-                        
+            exePtr[curIndex] = NULL; // sets null to show end of args        
             
             pidArray[j] = fork(); // calls fork on pid p
 
@@ -286,7 +277,7 @@ void handlePipes(char exe[][BSIZE], int numberOfItems, int numPipes) { // if par
                     close(pipeArray[j][1]);
                 }
 
-                if (execvp(exe[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
+                if (execvp(exePtr[0], exePtr) < 0) { // calls execvp on passed in executable with unparsed as parameters but catches error if exec fails
                     printf("Error executing...\n"); // prints statement that exec fails
                     exit(1); // exits child process since it failed
                 }
@@ -649,11 +640,6 @@ void parseThenPass(char* input) { // parses input and runs corresponding command
         return; // returns because the output of the parser was empty
     }
     FILE *outputFile; // creates outputFile
-
-    
-    for(int i = 0; i < numberOfItems; i++) { // prints each parsed item
-        printf("item %d: {%s}\n", i, parsed[i]);
-    }
 
     if (numPipes == 0) { // runs if no pipes
 
